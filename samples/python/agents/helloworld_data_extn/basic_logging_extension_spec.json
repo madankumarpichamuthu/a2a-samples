@@ -1,0 +1,57 @@
+{
+  "id": "http://localhost:8080/extensions/basic-logging/v1",
+  "version": "1.0.0",
+  "type": "data",
+  "name": "Basic Request Logging",
+  "description": "Simple request tracking with timestamps and processing time",
+  "activation": "header-based",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "log_entry": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of request completion"
+          },
+          "request_id": {
+            "type": "string", 
+            "description": "Unique identifier for the request"
+          },
+          "processing_time_ms": {
+            "type": "integer",
+            "description": "Request processing time in milliseconds"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["success", "error"],
+            "description": "Request completion status"
+          }
+        },
+        "required": ["timestamp", "request_id", "processing_time_ms", "status"]
+      }
+    }
+  },
+  "examples": [
+    {
+      "description": "Basic successful request log",
+      "log_entry": {
+        "timestamp": "2024-01-15T10:30:45Z",
+        "request_id": "req_abc123",
+        "processing_time_ms": 1250,
+        "status": "success"
+      }
+    },
+    {
+      "description": "Failed request log",
+      "log_entry": {
+        "timestamp": "2024-01-15T10:30:47Z", 
+        "request_id": "req_ghi789",
+        "processing_time_ms": 2100,
+        "status": "error"
+      }
+    }
+  ]
+}

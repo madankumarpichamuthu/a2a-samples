@@ -1,0 +1,56 @@
+{
+  "id": "http://localhost:8080/extensions/simple-time-greeting/v1",
+  "version": "1.0.0",
+  "type": "method",
+  "name": "Simple Time Greeting",
+  "description": "Provides time-based greetings (morning, afternoon, evening)",
+  "methods": {
+    "time-greeting": {
+      "description": "Get a greeting appropriate for the current time of day",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "description": "Timezone (e.g., 'UTC', 'America/New_York')",
+            "default": "UTC"
+          }
+        }
+      },
+      "returns": {
+        "type": "object",
+        "properties": {
+          "greeting": {
+            "type": "string",
+            "description": "Time-appropriate greeting message"
+          },
+          "time_period": {
+            "type": "string",
+            "enum": ["morning", "afternoon", "evening"],
+            "description": "Current time period"
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "method": "time-greeting",
+      "params": {},
+      "result": {
+        "greeting": "Good morning!",
+        "time_period": "morning"
+      }
+    },
+    {
+      "method": "time-greeting", 
+      "params": {
+        "timezone": "America/New_York"
+      },
+      "result": {
+        "greeting": "Good evening!",
+        "time_period": "evening"
+      }
+    }
+  ]
+}
