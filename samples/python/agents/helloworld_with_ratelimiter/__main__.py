@@ -68,7 +68,7 @@ if __name__ == '__main__':
             ],  # Both skills for the extended card
         }
     )
-    
+
     # Add rate limiting extension to agent cards
     public_agent_card = rate_limiter.add_to_card(public_agent_card)
     specific_extended_agent_card = rate_limiter.add_to_card(specific_extended_agent_card)
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     # Create rate-limited agent executor using decorator pattern
     base_executor = HelloWorldAgentExecutor()
     rate_limited_executor = rate_limiter.wrap_executor(base_executor)
-    
+
     request_handler = DefaultRequestHandler(
         agent_executor=rate_limited_executor,
         task_store=InMemoryTaskStore(),

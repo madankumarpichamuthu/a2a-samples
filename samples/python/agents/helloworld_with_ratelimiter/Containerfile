@@ -31,7 +31,7 @@ RUN --mount=type=cache,target=/.cache/uv \
 RUN --mount=type=cache,target=/.cache/uv \
     uv sync --frozen --no-dev
 
-# Allow non-root user to access the everything in app-root
+# Allow non-root user to access everything in app-root
 RUN chgrp -R root /opt/app-root/ && chmod -R g+rwX /opt/app-root/
 
 # Expose default port (change if needed)
@@ -40,4 +40,4 @@ EXPOSE 9999
 USER 1001
 
 # Run the agent
-CMD uv run . --host 0.0.0.0
+CMD ["uv", "run", ".", "--host", "0.0.0.0"]
