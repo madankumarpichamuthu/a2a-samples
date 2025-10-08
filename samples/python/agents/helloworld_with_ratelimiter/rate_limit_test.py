@@ -25,7 +25,7 @@ class RateLimitTestClient:
         self,
         message_text: str = 'Hello',
         use_extension: bool = False,
-        custom_limits: dict[str, int] | None = None
+        custom_limits: dict[str, int] | None = None,
     ) -> dict[str, Any]:
         """Send a single request to the agent."""
         payload = {
@@ -37,9 +37,9 @@ class RateLimitTestClient:
                     'kind': 'message',
                     'messageId': f'msg-{int(time.time() * 1000)}',
                     'parts': [{'kind': 'text', 'text': message_text}],
-                    'role': 'user'
+                    'role': 'user',
                 }
-            }
+            },
         }
 
         headers = {'Content-Type': 'application/json'}
@@ -57,10 +57,7 @@ class RateLimitTestClient:
 
         try:
             response = await self.client.post(
-                self.base_url,
-                json=payload,
-                headers=headers,
-                timeout=10.0
+                self.base_url, json=payload, headers=headers, timeout=10.0
             )
             response.raise_for_status()
             return response.json()
@@ -71,7 +68,9 @@ class RateLimitTestClient:
                 'error': f'HTTP {e.response.status_code}: {e.response.text}'
             }
 
-    def extract_rate_limit_info(self, response: dict[str, Any]) -> dict[str, Any]:
+    def extract_rate_limit_info(
+        self, response: dict[str, Any]
+    ) -> dict[str, Any]:
         """Extract rate limit information from response metadata."""
         try:
             message = response.get('result', {}).get('message', {})
@@ -86,7 +85,7 @@ class RateLimitTestClient:
                 'remaining': rate_limit_result.get('remaining'),
                 'limit_type': rate_limit_result.get('limit_type'),
                 'retry_after': rate_limit_result.get('retry_after'),
-                'message_text': message.get('parts', [{}])[0].get('text', '')
+                'message_text': message.get('parts', [{}])[0].get('text', ''),
             }
         except (KeyError, IndexError):
             return {'error': 'Could not extract rate limit info'}
@@ -101,11 +100,11 @@ class RateLimitTestClient:
         print(f'\n--- Response {response_num} (t={elapsed:.1f}s) ---')
 
         if 'error' in response:
-            print(f"❌ Error: {response['error']}")
+            print(f'❌ Error: {response["error"]}')
             return
 
         if 'error' in rate_limit_info:
-            print(f"⚠️  {rate_limit_info['error']}")
+            print(f'⚠️  {rate_limit_info["error"]}')
             return
 
         message_text = rate_limit_info['message_text']
@@ -117,11 +116,11 @@ class RateLimitTestClient:
             print(f'✅ Success: {message_text}')
 
         if rate_limit_info['allowed'] is not None:
-            print(f"   Remaining: {rate_limit_info['remaining']}")
-            print(f"   Algorithm: {rate_limit_info['limit_type']}")
+            print(f'   Remaining: {rate_limit_info["remaining"]}')
+            print(f'   Algorithm: {rate_limit_info["limit_type"]}')
 
             if rate_limit_info['retry_after']:
-                print(f"   Retry after: {rate_limit_info['retry_after']:.1f}s")
+                print(f'   Retry after: {rate_limit_info["retry_after"]:.1f}s')
 
     async def test_basic_rate_limiting(self):
         """Test basic rate limiting with default settings."""
@@ -153,7 +152,7 @@ class RateLimitTestClient:
             response = await self.send_request(
                 f'Custom limit test #{i}',
                 use_extension=True,
-                custom_limits=custom_limits
+                custom_limits=custom_limits,
             )
             self.print_response_info(i, response, start_time)
             await asyncio.sleep(0.1)
@@ -165,25 +164,32 @@ class RateLimitTestClient:
         print('\n\n🧪 Testing Rate Limit Recovery')
         print('=' * 60)
 
-        custom_limits = {'requests': 3, 'window': 10}  # 3 requests per 10 seconds
+        custom_limits = {
+            'requests': 3,
+            'window': 10,
+        }  # 3 requests per 10 seconds
 
         # Exhaust the limit
         print('Step 1: Exhaust rate limit (3 requests)')
         for i in range(1, 5):
             response = await self.send_request(
-                f'Exhaust #{i}',
-                use_extension=True,
-                custom_limits=custom_limits
+                f'Exhaust #{i}', use_extension=True, custom_limits=custom_limits
             )
             rate_info = self.extract_rate_limit_info(response)
-            is_limited = 'rate limit exceeded' in rate_info['message_text'].lower()
+            is_limited = (
+                'rate limit exceeded' in rate_info['message_text'].lower()
+            )
             status = '🚫 Limited' if is_limited else '✅ Success'
-            print(f"   Request {i}: {status} (Remaining: {rate_info.get('remaining', 'N/A')})")
+            print(
+                f'   Request {i}: {status} (Remaining: {rate_info.get("remaining", "N/A")})'
+            )
             await asyncio.sleep(0.1)
 
         # Wait for recovery
         wait_time = 12  # Wait longer than the window
-        print(f'\nStep 2: Waiting {wait_time} seconds for rate limit recovery...')
+        print(
+            f'\nStep 2: Waiting {wait_time} seconds for rate limit recovery...'
+        )
         await asyncio.sleep(wait_time)
 
         # Test recovery
@@ -192,12 +198,16 @@ class RateLimitTestClient:
             response = await self.send_request(
                 f'Recovery #{i}',
                 use_extension=True,
-                custom_limits=custom_limits
+                custom_limits=custom_limits,
             )
             rate_info = self.extract_rate_limit_info(response)
-            is_limited = 'rate limit exceeded' in rate_info['message_text'].lower()
+            is_limited = (
+                'rate limit exceeded' in rate_info['message_text'].lower()
+            )
             status = '🚫 Limited' if is_limited else '✅ Success'
-            print(f"   Request {i}: {status} (Remaining: {rate_info.get('remaining', 'N/A')})")
+            print(
+                f'   Request {i}: {status} (Remaining: {rate_info.get("remaining", "N/A")})'
+            )
             await asyncio.sleep(0.1)
 
     async def run_all_tests(self):
@@ -235,13 +245,13 @@ async def main():
     parser.add_argument(
         '--url',
         default='http://localhost:9999',
-        help='Agent URL (default: http://localhost:9999)'
+        help='Agent URL (default: http://localhost:9999)',
     )
     parser.add_argument(
         '--test',
         choices=['basic', 'custom', 'recovery', 'all'],
         default='all',
-        help='Which test to run (default: all)'
+        help='Which test to run (default: all)',
     )
 
     args = parser.parse_args()

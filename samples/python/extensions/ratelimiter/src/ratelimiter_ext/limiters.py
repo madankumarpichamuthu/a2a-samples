@@ -15,20 +15,21 @@ from typing import Any
 @dataclass
 class RateLimitResult:
     """Result of a rate limit check."""
+
     allowed: bool
     remaining: int = 0
     reset_time: float | None = None
     retry_after: float | None = None
-    limit_type: str = 'unknown'
+    limit_type: str = "unknown"
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for metadata."""
         return {
-            'allowed': self.allowed,
-            'remaining': self.remaining,
-            'reset_time': self.reset_time,
-            'retry_after': self.retry_after,
-            'limit_type': self.limit_type,
+            "allowed": self.allowed,
+            "remaining": self.remaining,
+            "reset_time": self.reset_time,
+            "retry_after": self.retry_after,
+            "limit_type": self.limit_type,
         }
 
 
@@ -81,32 +82,32 @@ class TokenBucketLimiter(RateLimiter):
         with self._lock:
             if key not in self.buckets:
                 self.buckets[key] = {
-                    'tokens': capacity,
-                    'last_update': now,
+                    "tokens": capacity,
+                    "last_update": now,
                 }
 
             bucket = self.buckets[key]
 
             # Refill tokens based on time elapsed
-            time_elapsed = now - bucket['last_update']
+            time_elapsed = now - bucket["last_update"]
             tokens_to_add = time_elapsed * rate
-            bucket['tokens'] = min(capacity, bucket['tokens'] + tokens_to_add)
-            bucket['last_update'] = now
+            bucket["tokens"] = min(capacity, bucket["tokens"] + tokens_to_add)
+            bucket["last_update"] = now
 
-            if bucket['tokens'] >= 1:
-                bucket['tokens'] -= 1
+            if bucket["tokens"] >= 1:
+                bucket["tokens"] -= 1
                 return RateLimitResult(
                     allowed=True,
-                    remaining=int(bucket['tokens']),
-                    limit_type='token_bucket',
+                    remaining=int(bucket["tokens"]),
+                    limit_type="token_bucket",
                 )
             else:
-                retry_after = (1 - bucket['tokens']) / rate
+                retry_after = (1 - bucket["tokens"]) / rate
                 return RateLimitResult(
                     allowed=False,
                     remaining=0,
                     retry_after=retry_after,
-                    limit_type='token_bucket',
+                    limit_type="token_bucket",
                 )
 
     def reset(self, key: str) -> None:
@@ -160,21 +161,19 @@ class SlidingWindowLimiter(RateLimiter):
                     allowed=True,
                     remaining=limit - current_count - 1,
                     reset_time=now + window,
-                    limit_type='sliding_window',
+                    limit_type="sliding_window",
                 )
             else:
                 # Calculate retry after based on oldest entry
                 oldest_in_window = request_times[0]
-                retry_after = (
-                    oldest_in_window + window - now + 0.001
-                )  # Small buffer
+                retry_after = oldest_in_window + window - now + 0.001  # Small buffer
 
                 return RateLimitResult(
                     allowed=False,
                     remaining=0,
                     retry_after=max(0, retry_after),
                     reset_time=oldest_in_window + window,
-                    limit_type='sliding_window',
+                    limit_type="sliding_window",
                 )
 
     def reset(self, key: str) -> None:
@@ -204,24 +203,24 @@ class FixedWindowLimiter(RateLimiter):
         with self._lock:
             if key not in self.windows:
                 self.windows[key] = {
-                    'count': 0,
-                    'window_start': window_start,
+                    "count": 0,
+                    "window_start": window_start,
                 }
 
             window_data = self.windows[key]
 
             # Reset window if expired
-            if window_data['window_start'] != window_start:
-                window_data['count'] = 0
-                window_data['window_start'] = window_start
+            if window_data["window_start"] != window_start:
+                window_data["count"] = 0
+                window_data["window_start"] = window_start
 
-            if window_data['count'] < limit:
-                window_data['count'] += 1
+            if window_data["count"] < limit:
+                window_data["count"] += 1
                 return RateLimitResult(
                     allowed=True,
-                    remaining=limit - window_data['count'],
+                    remaining=limit - window_data["count"],
                     reset_time=window_start + window,
-                    limit_type='fixed_window',
+                    limit_type="fixed_window",
                 )
             else:
                 retry_after = window_start + window - now
@@ -230,7 +229,7 @@ class FixedWindowLimiter(RateLimiter):
                     remaining=0,
                     retry_after=max(0, retry_after),
                     reset_time=window_start + window,
-                    limit_type='fixed_window',
+                    limit_type="fixed_window",
                 )
 
     def reset(self, key: str) -> None:
@@ -265,17 +264,15 @@ class CompositeLimiter(RateLimiter):
 
             if not result.allowed:
                 # Return the most restrictive result
-                result.limit_type = f'composite_{result.limit_type}'
+                result.limit_type = f"composite_{result.limit_type}"
                 return result
 
         # All limiters allowed the request
-        min_remaining = min(
-            r.remaining for r in results if r.remaining is not None
-        )
+        min_remaining = min(r.remaining for r in results if r.remaining is not None)
         return RateLimitResult(
             allowed=True,
             remaining=min_remaining if min_remaining is not None else 0,
-            limit_type='composite',
+            limit_type="composite",
         )
 
     def reset(self, key: str) -> None:
@@ -285,10 +282,10 @@ class CompositeLimiter(RateLimiter):
 
 
 __all__ = [
-    'CompositeLimiter',
-    'FixedWindowLimiter',
-    'RateLimitResult',
-    'RateLimiter',
-    'SlidingWindowLimiter',
-    'TokenBucketLimiter',
+    "CompositeLimiter",
+    "FixedWindowLimiter",
+    "RateLimitResult",
+    "RateLimiter",
+    "SlidingWindowLimiter",
+    "TokenBucketLimiter",
 ]
