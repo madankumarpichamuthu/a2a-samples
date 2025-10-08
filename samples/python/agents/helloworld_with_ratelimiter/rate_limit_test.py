@@ -46,7 +46,9 @@ class RateLimitTestClient:
 
         # Add extension activation if requested
         if use_extension:
-            headers['X-A2A-Extensions'] = 'https://github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1'
+            headers['X-A2A-Extensions'] = (
+                'https://github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1'
+            )
 
             if custom_limits:
                 payload['params']['message']['metadata'] = {
@@ -65,7 +67,9 @@ class RateLimitTestClient:
         except httpx.RequestError as e:
             return {'error': f'Request failed: {e}'}
         except httpx.HTTPStatusError as e:
-            return {'error': f'HTTP {e.response.status_code}: {e.response.text}'}
+            return {
+                'error': f'HTTP {e.response.status_code}: {e.response.text}'
+            }
 
     def extract_rate_limit_info(self, response: dict[str, Any]) -> dict[str, Any]:
         """Extract rate limit information from response metadata."""
@@ -74,7 +78,7 @@ class RateLimitTestClient:
             metadata = message.get('metadata', {})
             rate_limit_result = metadata.get(
                 'github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/result',
-                {}
+                {},
             )
 
             return {
@@ -87,7 +91,9 @@ class RateLimitTestClient:
         except (KeyError, IndexError):
             return {'error': 'Could not extract rate limit info'}
 
-    def print_response_info(self, response_num: int, response: dict[str, Any], start_time: float):
+    def print_response_info(
+        self, response_num: int, response: dict[str, Any], start_time: float
+    ):
         """Print formatted response information."""
         elapsed = time.time() - start_time
         rate_limit_info = self.extract_rate_limit_info(response)

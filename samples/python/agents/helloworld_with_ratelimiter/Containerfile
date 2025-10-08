@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/python-312
+FROM registry.access.redhat.com/ubi8/python-312:1-87
 
 # Set work directory
 WORKDIR /opt/app-root/
@@ -9,8 +9,9 @@ COPY . /opt/app-root
 USER root
 
 # Install system build dependencies and UV package manager
-RUN dnf -y update && dnf install -y gcc gcc-c++ \
- && pip install uv \
+# hadolint ignore=DL3013,DL3042
+RUN dnf -y update && dnf install -y gcc-11.5.0-2.el8 gcc-c++-11.5.0-2.el8 \
+ && pip install --no-cache-dir uv==0.5.15 \
  && dnf clean all
 
 # Set environment variables for uv:
@@ -19,16 +20,12 @@ RUN dnf -y update && dnf install -y gcc gcc-c++ \
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-# Install dependencies using uv sync.
+# Install dependencies and project using uv sync.
 # --frozen: Ensures uv respects the uv.lock file
-# --no-install-project: Prevents installing the project itself in this stage
 # --no-dev: Excludes development dependencies
 # --mount=type=cache: Leverages Docker's build cache for uv, speeding up repeated builds
 RUN --mount=type=cache,target=/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev
-
-# Install the project
-RUN --mount=type=cache,target=/.cache/uv \
+    uv sync --frozen --no-install-project --no-dev && \
     uv sync --frozen --no-dev
 
 # Allow non-root user to access everything in app-root

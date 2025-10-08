@@ -301,7 +301,7 @@ except RateLimitExceeded as e:
 
 When using the decorator pattern, rate limit exceeded responses are sent automatically:
 
-```
+```text
 "Rate limit exceeded. 0 requests remaining. Retry after 15.3 seconds."
 ```
 

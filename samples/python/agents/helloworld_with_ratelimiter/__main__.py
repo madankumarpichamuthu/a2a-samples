@@ -60,8 +60,9 @@ if __name__ == '__main__':
             'name': 'Hello World Agent with Rate Limiting - Extended Edition',  # Different name for clarity
             'description': 'The full-featured rate-limited hello world agent for authenticated users.',
             'version': '1.0.1',  # Could even be a different version
-            # Capabilities and other fields like url, default_input_modes, default_output_modes,
-            # supports_authenticated_extended_card are inherited from public_agent_card unless specified here.
+            # Capabilities and other fields like url, default_input_modes,
+            # default_output_modes, supports_authenticated_extended_card
+            # are inherited from public_agent_card unless specified here.
             'skills': [
                 skill,
                 extended_skill,
@@ -71,7 +72,9 @@ if __name__ == '__main__':
 
     # Add rate limiting extension to agent cards
     public_agent_card = rate_limiter.add_to_card(public_agent_card)
-    specific_extended_agent_card = rate_limiter.add_to_card(specific_extended_agent_card)
+    specific_extended_agent_card = rate_limiter.add_to_card(
+        specific_extended_agent_card
+    )
 
     # Create rate-limited agent executor using decorator pattern
     base_executor = HelloWorldAgentExecutor()

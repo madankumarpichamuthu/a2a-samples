@@ -56,7 +56,9 @@ class RateLimitExceeded(Exception):
 
     def __init__(self, result: RateLimitResult, message: str | None = None):
         self.result = result
-        super().__init__(message or f"Rate limit exceeded. Retry after {result.retry_after}s")
+        super().__init__(
+            message or f'Rate limit exceeded. Retry after {result.retry_after}s'
+        )
 
 
 class RateLimitingExtension:
@@ -98,7 +100,7 @@ class RateLimitingExtension:
         """Get the AgentExtension representing this extension."""
         return AgentExtension(
             uri=URI,
-            description="Provides rate limiting capabilities for agent requests.",
+            description='Provides rate limiting capabilities for agent requests.',
         )
 
     # Option 2: Do it for them
@@ -145,8 +147,8 @@ class RateLimitingExtension:
         key = self.key_extractor(context)
 
         # Extract limit configuration
-        limit = limits.get("requests", 100)
-        window = limits.get("window", 60)  # seconds
+        limit = limits.get('requests', 100)
+        window = limits.get('window', 60)  # seconds
 
         return self.limiter.check_limit(key, limit, window)
 
@@ -185,7 +187,7 @@ class RateLimitingExtension:
         message.metadata[RATE_LIMIT_RESULT_FIELD] = result.to_dict()
 
     # Option 4: Helper class
-    def get_rate_limiter(self, context: RequestContext) -> "RateLimitHelper":
+    def get_rate_limiter(self, context: RequestContext) -> 'RateLimitHelper':
         """Get a helper class for rate limiting within request context."""
         active = self.activate(context)
         return RateLimitHelper(active, self, context)
@@ -199,11 +201,11 @@ class RateLimitingExtension:
         self, http_kwargs: dict[str, Any]
     ) -> dict[str, Any]:
         """Update http_kwargs to request activation of this extension."""
-        if not (headers := http_kwargs.get("headers")):
-            headers = http_kwargs["headers"] = {}
+        if not (headers := http_kwargs.get('headers')):
+            headers = http_kwargs['headers'] = {}
         header_val = URI
         if headers.get(HTTP_EXTENSION_HEADER):
-            header_val = headers[HTTP_EXTENSION_HEADER] + ", " + URI
+            header_val = headers[HTTP_EXTENSION_HEADER] + ', ' + URI
         headers[HTTP_EXTENSION_HEADER] = header_val
         return http_kwargs
 
@@ -228,7 +230,9 @@ class RateLimitingExtension:
 class RateLimitHelper:
     """Helper class for rate limiting within a request context."""
 
-    def __init__(self, active: bool, ext: RateLimitingExtension, context: RequestContext):
+    def __init__(
+        self, active: bool, ext: RateLimitingExtension, context: RequestContext
+    ):
         self._active = active
         self._ext = ext
         self._context = context
@@ -266,11 +270,13 @@ class _RateLimitedAgentExecutor(AgentExecutor):
                 event_queue = _RateLimitedEventQueue(event_queue, self._ext, result)
             except RateLimitExceeded as e:
                 # Send rate limit exceeded response
-                error_message = f"Rate limit exceeded. {e.result.remaining} requests remaining. "
+                error_message = f'Rate limit exceeded. {e.result.remaining} requests remaining. '
                 if e.result.retry_after:
-                    error_message += f"Retry after {e.result.retry_after:.1f} seconds."
+                    error_message += f'Retry after {e.result.retry_after:.1f} seconds.'
 
-                await event_queue.enqueue_event(new_agent_text_message(error_message))
+                await event_queue.enqueue_event(
+                    new_agent_text_message(error_message)
+                )
                 return
 
         # Proceed with normal execution
@@ -278,7 +284,7 @@ class _RateLimitedAgentExecutor(AgentExecutor):
 
     def _extract_limits(self, context: RequestContext) -> dict[str, Any]:
         """Extract rate limiting configuration from context."""
-        default_limits = {"requests": 100, "window": 60}
+        default_limits = {'requests': 100, 'window': 60}
 
         if not context.message or not context.message.metadata:
             return default_limits
@@ -296,7 +302,12 @@ class _RateLimitedAgentExecutor(AgentExecutor):
 class _RateLimitedEventQueue(EventQueue):
     """EventQueue decorator that adds rate limit headers to responses."""
 
-    def __init__(self, delegate: EventQueue, ext: RateLimitingExtension, result: RateLimitResult):
+    def __init__(
+        self,
+        delegate: EventQueue,
+        ext: RateLimitingExtension,
+        result: RateLimitResult,
+    ):
         self._delegate = delegate
         self._ext = ext
         self._result = result
@@ -309,7 +320,9 @@ class _RateLimitedEventQueue(EventQueue):
         if isinstance(event, Message):
             self._ext.add_rate_limit_headers(self._result, event)
         elif isinstance(event, TaskStatusUpdateEvent) and event.status.message:
-            self._ext.add_rate_limit_headers(self._result, event.status.message)
+            self._ext.add_rate_limit_headers(
+                self._result, event.status.message
+            )
 
         await self._delegate.enqueue_event(event)
 
@@ -360,7 +373,10 @@ class _RateLimitedClient(Client):
         return await self._delegate.get_task(request, context=context)
 
     async def cancel_task(
-        self, request: TaskIdParams, *, context: ClientCallContext | None = None
+        self,
+        request: TaskIdParams,
+        *,
+        context: ClientCallContext | None = None,
     ) -> Task:
         return await self._delegate.cancel_task(request, context=context)
 
@@ -381,7 +397,10 @@ class _RateLimitedClient(Client):
         return await self._delegate.get_task_callback(request, context=context)
 
     async def resubscribe(
-        self, request: TaskIdParams, *, context: ClientCallContext | None = None
+        self,
+        request: TaskIdParams,
+        *,
+        context: ClientCallContext | None = None,
     ) -> AsyncIterator[ClientEvent]:
         async for e in self._delegate.resubscribe(request, context=context):
             yield e
@@ -438,16 +457,16 @@ class _RateLimitClientFactory(ClientFactory):
 
 
 __all__ = [
-    "RATE_LIMIT_FIELD",
-    "RATE_LIMIT_RESULT_FIELD",
-    "URI",
-    "CompositeLimiter",
-    "FixedWindowLimiter",
-    "RateLimitExceeded",
-    "RateLimitHelper",
-    "RateLimitResult",
-    "RateLimiter",
-    "RateLimitingExtension",
-    "SlidingWindowLimiter",
-    "TokenBucketLimiter",
+    'RATE_LIMIT_FIELD',
+    'RATE_LIMIT_RESULT_FIELD',
+    'URI',
+    'CompositeLimiter',
+    'FixedWindowLimiter',
+    'RateLimitExceeded',
+    'RateLimitHelper',
+    'RateLimitResult',
+    'RateLimiter',
+    'RateLimitingExtension',
+    'SlidingWindowLimiter',
+    'TokenBucketLimiter',
 ]
