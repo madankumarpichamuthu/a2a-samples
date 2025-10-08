@@ -6,7 +6,6 @@ rapid requests and showing how the rate limiting behavior works.
 """
 
 import asyncio
-import json
 import time
 from typing import Any, Dict
 
@@ -242,16 +241,17 @@ async def main():
     
     client = RateLimitTestClient(args.url)
     
-    if args.test == "basic":
-        await client.test_basic_rate_limiting()
-    elif args.test == "custom":
-        await client.test_custom_limits()
-    elif args.test == "recovery":
-        await client.test_recovery_after_wait()
-    else:
-        await client.run_all_tests()
-    
-    await client.client.aclose()
+    try:
+        if args.test == "basic":
+            await client.test_basic_rate_limiting()
+        elif args.test == "custom":
+            await client.test_custom_limits()
+        elif args.test == "recovery":
+            await client.test_recovery_after_wait()
+        else:
+            await client.run_all_tests()
+    finally:
+        await client.client.aclose()
 
 
 if __name__ == "__main__":

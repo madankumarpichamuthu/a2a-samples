@@ -16,11 +16,11 @@ dependencies = [
     "sse-starlette>=2.3.5",
     "starlette>=0.46.2",
     "uvicorn>=0.34.2",
+    "ratelimiter-ext @ {root:uri}/../../../extensions/ratelimiter",
 ]
 
 [project.optional-dependencies]
 ratelimiter = [
-    # Local development - would be "ratelimiter-ext" in production
 ]
 
 [tool.hatch.build.targets.wheel]

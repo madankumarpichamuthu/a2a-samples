@@ -51,7 +51,7 @@ curl -X POST http://localhost:9999/ \
   -d '{
     "jsonrpc": "2.0",
     "id": "test",
-    "method": "message/send", 
+    "method": "message/send",
     "params": {
       "message": {
         "kind": "message",
@@ -75,7 +75,7 @@ curl -X POST http://localhost:9999/ \
     "params": {
       "message": {
         "kind": "message",
-        "messageId": "msg-1", 
+        "messageId": "msg-1",
         "parts": [{"kind": "text", "text": "Hello"}],
         "role": "user",
         "metadata": {
@@ -122,7 +122,7 @@ curl -X POST http://localhost:9999/ \
 ### Rate Limited Response
 ```json
 {
-  "jsonrpc": "2.0", 
+  "jsonrpc": "2.0",
   "id": "test",
   "result": {
     "message": {

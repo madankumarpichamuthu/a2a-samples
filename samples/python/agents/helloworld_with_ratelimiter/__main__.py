@@ -51,9 +51,6 @@ if __name__ == '__main__':
         skills=[skill],  # Only the basic skill for the public card
         supports_authenticated_extended_card=True,
     )
-    
-    # Add rate limiting extension to agent card
-    public_agent_card = rate_limiter.add_to_card(public_agent_card)
     # --8<-- [end:AgentCard]
 
     # This will be the authenticated extended agent card
@@ -72,7 +69,8 @@ if __name__ == '__main__':
         }
     )
     
-    # Apply rate limiting extension to extended card as well
+    # Add rate limiting extension to agent cards
+    public_agent_card = rate_limiter.add_to_card(public_agent_card)
     specific_extended_agent_card = rate_limiter.add_to_card(specific_extended_agent_card)
 
     # Create rate-limited agent executor using decorator pattern

@@ -7,7 +7,7 @@ name = "ratelimiter-ext"
 dynamic = ["version"]
 description = "Rate limiting extension for A2A protocol agents"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 keywords = ["a2a", "rate-limiting", "agent", "extension"]
 authors = [
@@ -16,7 +16,6 @@ authors = [
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -57,7 +56,7 @@ cov = [
 ]
 
 [[tool.hatch.envs.all.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12"]
+python = ["3.10", "3.11", "3.12"]
 
 [tool.hatch.envs.lint]
 detached = true
@@ -83,12 +82,12 @@ all = [
 ]
 
 [tool.black]
-target-version = ["py39"]
+target-version = ["py310"]
 line-length = 120
 skip-string-normalization = true
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 120
 select = [
   "A",

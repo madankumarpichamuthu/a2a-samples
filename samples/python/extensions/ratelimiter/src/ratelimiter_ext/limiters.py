@@ -8,7 +8,7 @@ import time
 from abc import ABC, abstractmethod
 from collections import deque
 from typing import Any, Dict, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from threading import Lock
 
 

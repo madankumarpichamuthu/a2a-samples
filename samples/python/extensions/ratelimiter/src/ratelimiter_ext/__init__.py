@@ -5,8 +5,9 @@ supporting multiple algorithms and integration patterns following the A2A
 extension specification.
 """
 
+__version__ = "0.1.0"
+
 import time
-import types
 from collections.abc import AsyncIterator, Callable
 from typing import Any, Dict, Optional, Union
 
@@ -22,6 +23,7 @@ from a2a.client.middleware import ClientCallContext
 from a2a.extensions.common import HTTP_EXTENSION_HEADER, find_extension_by_uri
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events.event_queue import EventQueue
+from a2a.utils import new_agent_text_message
 from a2a.types import (
     AgentCard,
     AgentExtension,
@@ -107,9 +109,10 @@ class RateLimitingExtension:
     # Option 2: Do it for them
     def add_to_card(self, card: AgentCard) -> AgentCard:
         """Add this extension to an AgentCard."""
-        if not (exts := card.capabilities.extensions):
-            exts = card.capabilities.extensions = []
-        exts.append(self.agent_extension())
+        if not self.is_supported(card):
+            if not (exts := card.capabilities.extensions):
+                exts = card.capabilities.extensions = []
+            exts.append(self.agent_extension())
         return card
     
     def is_supported(self, card: AgentCard | None) -> bool:
@@ -268,7 +271,6 @@ class _RateLimitedAgentExecutor(AgentExecutor):
                 event_queue = _RateLimitedEventQueue(event_queue, self._ext, result)
             except RateLimitExceeded as e:
                 # Send rate limit exceeded response
-                from a2a.utils import new_agent_text_message
                 error_message = f"Rate limit exceeded. {e.result.remaining} requests remaining. "
                 if e.result.retry_after:
                     error_message += f"Retry after {e.result.retry_after:.1f} seconds."
