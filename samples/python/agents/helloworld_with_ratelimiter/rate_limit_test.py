@@ -232,7 +232,7 @@ class RateLimitTestClient:
             print('- Limits recover after waiting the specified window')
             print('- Error messages include retry timing information')
 
-        except Exception as e:
+        except (KeyError, ValueError, RuntimeError) as e:
             print(f'\n❌ Test failed with error: {e}')
         finally:
             await self.client.aclose()

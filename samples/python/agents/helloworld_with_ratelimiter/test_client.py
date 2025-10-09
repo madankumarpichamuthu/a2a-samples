@@ -41,7 +41,9 @@ async def main() -> None:
 
         try:
             logger.info(
-                f'Attempting to fetch public agent card from: {base_url}{AGENT_CARD_WELL_KNOWN_PATH}'
+                'Attempting to fetch public agent card from: %s%s',
+                base_url,
+                AGENT_CARD_WELL_KNOWN_PATH,
             )
             _public_card = (
                 await resolver.get_agent_card()
@@ -58,7 +60,9 @@ async def main() -> None:
             if _public_card.supports_authenticated_extended_card:
                 try:
                     logger.info(
-                        f'\nPublic card supports authenticated extended card. Attempting to fetch from: {base_url}{EXTENDED_AGENT_CARD_PATH}'
+                        '\nPublic card supports authenticated extended card. Attempting to fetch from: %s%s',
+                        base_url,
+                        EXTENDED_AGENT_CARD_PATH,
                     )
                     auth_headers_dict = {
                         'Authorization': 'Bearer dummy-token-for-extended-card'
@@ -81,9 +85,10 @@ async def main() -> None:
                     logger.info(
                         '\nUsing AUTHENTICATED EXTENDED agent card for client initialization.'
                     )
-                except Exception as e_extended:
+                except (httpx.HTTPError, ValueError) as e_extended:
                     logger.warning(
-                        f'Failed to fetch extended agent card: {e_extended}. Will proceed with public card.',
+                        'Failed to fetch extended agent card: %s. Will proceed with public card.',
+                        e_extended,
                         exc_info=True,
                     )
             elif (
@@ -94,12 +99,9 @@ async def main() -> None:
                 )
 
         except Exception as e:
-            logger.error(
-                f'Critical error fetching public agent card: {e}', exc_info=True
-            )
-            raise RuntimeError(
-                'Failed to fetch the public agent card. Cannot continue.'
-            ) from e
+            logger.exception('Critical error fetching public agent card')
+            msg = 'Failed to fetch the public agent card. Cannot continue.'
+            raise RuntimeError(msg) from e
 
         # --8<-- [start:send_message]
         client = A2AClient(

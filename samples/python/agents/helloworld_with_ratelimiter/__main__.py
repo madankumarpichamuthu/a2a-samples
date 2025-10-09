@@ -91,4 +91,5 @@ if __name__ == '__main__':
         extended_agent_card=specific_extended_agent_card,
     )
 
-    uvicorn.run(server.build(), host='0.0.0.0', port=9999)
+    # Bind to 0.0.0.0 to allow external connections in containerized environment
+    uvicorn.run(server.build(), host='0.0.0.0', port=9999)  # noqa: S104

@@ -8,6 +8,7 @@ class HelloWorldAgent:
     """Hello World Agent."""
 
     async def invoke(self) -> str:
+        """Invoke the agent to return a greeting."""
         return 'Hello World'
 
 
@@ -18,7 +19,8 @@ class HelloWorldAgent:
 class HelloWorldAgentExecutor(AgentExecutor):
     """Test AgentProxy Implementation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the HelloWorld agent executor."""
         self.agent = HelloWorldAgent()
 
     # --8<-- [end:HelloWorldAgentExecutor_init]
@@ -28,6 +30,7 @@ class HelloWorldAgentExecutor(AgentExecutor):
         context: RequestContext,
         event_queue: EventQueue,
     ) -> None:
+        """Execute the agent and send the result to the event queue."""
         result = await self.agent.invoke()
         await event_queue.enqueue_event(new_agent_text_message(result))
 
@@ -37,6 +40,8 @@ class HelloWorldAgentExecutor(AgentExecutor):
     async def cancel(
         self, context: RequestContext, event_queue: EventQueue
     ) -> None:
-        raise Exception('cancel not supported')
+        """Cancel the agent execution (not supported)."""
+        msg = 'cancel not supported'
+        raise NotImplementedError(msg)
 
     # --8<-- [end:HelloWorldAgentExecutor_cancel]
