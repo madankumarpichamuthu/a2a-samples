@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2A MCP Test Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 40px);
+            position: relative;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px 32px;
+            border-bottom: 3px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .config-bar {
+            background: #f8f9fa;
+            padding: 16px 32px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .config-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .config-item label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .config-item input {
+            padding: 6px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 200px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #dc3545;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #28a745;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #e9ecef;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 32px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            color: white;
+        }
+
+        .user-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .agent-avatar {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .system-avatar {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .message-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #212529;
+        }
+
+        .message-time {
+            font-size: 12px;
+            color: #6c757d;
+            margin-left: auto;
+        }
+
+        .message-content {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-left: 40px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .message.agent .message-content {
+            border-left-color: #f5576c;
+        }
+
+        .message.system .message-content {
+            border-left-color: #00f2fe;
+            background: #e7f5ff;
+        }
+
+        .message.error .message-content {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #6c757d;
+            font-size: 14px;
+            margin-left: 40px;
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6c757d;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .input-section {
+            padding: 24px 32px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            transition: all 0.2s;
+        }
+
+        #messageInput:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .button {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .button-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .button-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .button-secondary {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .button-secondary:hover:not(:disabled) {
+            background: #dee2e6;
+        }
+
+        .sidebar {
+            width: 350px;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .example-queries {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .example-query {
+            padding: 12px;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            color: #495057;
+        }
+
+        .example-query:hover {
+            border-color: #667eea;
+            background: #f0f2ff;
+            transform: translateX(4px);
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .task-item {
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #6c757d;
+        }
+
+        .task-item.pending { border-left-color: #ffc107; }
+        .task-item.running { border-left-color: #17a2b8; }
+        .task-item.completed { border-left-color: #28a745; }
+        .task-item.error { border-left-color: #dc3545; }
+
+        .task-name {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #212529;
+        }
+
+        .task-status {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .agent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .agent-item {
+            padding: 10px 12px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .agent-name {
+            font-weight: 500;
+            color: #212529;
+        }
+
+        .agent-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6c757d;
+        }
+
+        .agent-status.active {
+            background: #28a745;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .quick-action {
+            flex: 1;
+            padding: 10px;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .quick-action:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        /* Logs Panel Styles */
+        .logs-panel {
+            width: 450px;
+            min-width: 450px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logs-panel.collapsed {
+            width: 0;
+            min-width: 0;
+        }
+
+        .logs-header {
+            background: #252526;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .logs-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #cccccc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logs-toggle {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #252526;
+            border: none;
+            color: #cccccc;
+            width: 40px;
+            height: 80px;
+            cursor: pointer;
+            border-radius: 8px 0 0 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
+            z-index: 101;
+        }
+
+        .logs-toggle.panel-open {
+            right: 450px;
+        }
+
+        .logs-toggle:hover {
+            background: #2d2d30;
+            color: #ffffff;
+        }
+
+        .logs-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-control-btn {
+            background: transparent;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .log-control-btn:hover {
+            background: #3e3e42;
+            color: #ffffff;
+        }
+
+        .logs-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .logs-content::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .logs-content::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        .logs-content::-webkit-scrollbar-thumb {
+            background: #3e3e42;
+            border-radius: 5px;
+        }
+
+        .logs-content::-webkit-scrollbar-thumb:hover {
+            background: #4e4e52;
+        }
+
+        .log-entry {
+            margin-bottom: 16px;
+            border-left: 3px solid #3e3e42;
+            padding: 8px 12px;
+            background: #252526;
+            border-radius: 4px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-entry.request {
+            border-left-color: #4fc3f7;
+        }
+
+        .log-entry.response {
+            border-left-color: #81c784;
+        }
+
+        .log-entry.error {
+            border-left-color: #e57373;
+        }
+
+        .log-entry.mcp {
+            border-left-color: #ffb74d;
+        }
+
+        .log-timestamp {
+            color: #858585;
+            font-size: 11px;
+            margin-bottom: 4px;
+        }
+
+        .log-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-right: 8px;
+            text-transform: uppercase;
+        }
+
+        .log-type.request {
+            background: #4fc3f7;
+            color: #000;
+        }
+
+        .log-type.response {
+            background: #81c784;
+            color: #000;
+        }
+
+        .log-type.error {
+            background: #e57373;
+            color: #000;
+        }
+
+        .log-type.mcp {
+            background: #ffb74d;
+            color: #000;
+        }
+
+        .log-direction {
+            color: #9cdcfe;
+            font-weight: 600;
+        }
+
+        .log-message {
+            margin-top: 8px;
+            color: #d4d4d4;
+            word-wrap: break-word;
+        }
+
+        .log-json {
+            background: #1e1e1e;
+            padding: 8px;
+            border-radius: 3px;
+            overflow-x: auto;
+            margin-top: 6px;
+            font-size: 11px;
+            color: #ce9178;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                max-height: 300px;
+            }
+
+            .config-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .status-indicator {
+                margin-left: 0;
+            }
+
+            .logs-panel {
+                width: 100%;
+                min-width: 100%;
+            }
+
+            .logs-panel.collapsed {
+                width: 0;
+                min-width: 0;
+            }
+
+            .logs-toggle.panel-open {
+                right: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>A2A MCP Test Client</h1>
+            <p>Interactive test interface for Agent-to-Agent with Model Context Protocol</p>
+        </div>
+
+        <div class="config-bar">
+            <div class="config-item">
+                <label for="orchestratorUrl">Orchestrator URL:</label>
+                <input type="text" id="orchestratorUrl" value="http://localhost:8001/api">
+            </div>
+            <div class="config-item">
+                <label for="sessionId">Session ID:</label>
+                <input type="text" id="sessionId" value="" placeholder="Auto-generated">
+            </div>
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Not Connected</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="chat-section">
+                <div class="messages-container" id="messagesContainer"></div>
+                <div class="input-section">
+                    <div class="input-wrapper">
+                        <textarea
+                            id="messageInput"
+                            placeholder="Ask the orchestrator to plan your trip or execute a task..."
+                            rows="2"
+                        ></textarea>
+                        <button class="button button-primary" id="sendButton">
+                            <span>Send</span>
+                            <span>↑</span>
+                        </button>
+                    </div>
+                    <div class="quick-actions">
+                        <button class="quick-action" onclick="clearChat()">Clear Chat</button>
+                        <button class="quick-action" onclick="testConnection()">Test Connection</button>
+                        <button class="quick-action" onclick="newSession()">New Session</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Example Queries</div>
+                    <div class="example-queries">
+                        <div class="example-query" onclick="useExample(this)">
+                            Plan a business trip from San Francisco to London for June 1-7, budget $5000
+                        </div>
+                        <div class="example-query" onclick="useExample(this)">
+                            I need to travel to Paris for a conference, 2 travelers, July 15-20
+                        </div>
+                        <div class="example-query" onclick="useExample(this)">
+                            Book a vacation to Tokyo, departing from New York, staying 5 nights
+                        </div>
+                        <div class="example-query" onclick="useExample(this)">
+                            Plan a weekend getaway to Las Vegas from Los Angeles
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Expected Agents</div>
+                    <div class="agent-list">
+                        <div class="agent-item">
+                            <span class="agent-name">Orchestrator</span>
+                            <div class="agent-status" data-port="10101"></div>
+                        </div>
+                        <div class="agent-item">
+                            <span class="agent-name">Planner</span>
+                            <div class="agent-status" data-port="10102"></div>
+                        </div>
+                        <div class="agent-item">
+                            <span class="agent-name">Air Ticketing</span>
+                            <div class="agent-status" data-port="10103"></div>
+                        </div>
+                        <div class="agent-item">
+                            <span class="agent-name">Hotel Booking</span>
+                            <div class="agent-status" data-port="10104"></div>
+                        </div>
+                        <div class="agent-item">
+                            <span class="agent-name">Car Rental</span>
+                            <div class="agent-status" data-port="10105"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Current Tasks</div>
+                    <div class="task-list" id="taskList">
+                        <div style="font-size: 13px; color: #6c757d; text-align: center;">
+                            No active tasks
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Panel -->
+            <div class="logs-panel collapsed" id="logsPanel">
+                <button class="logs-toggle" onclick="toggleLogsPanel()">
+                    <span id="logsToggleIcon">◀</span>
+                </button>
+                <div class="logs-header">
+                    <div class="logs-title">
+                        <span>📡</span>
+                        <span>Agent Communication Logs</span>
+                    </div>
+                    <div class="logs-controls">
+                        <button class="log-control-btn" onclick="clearLogs()">Clear</button>
+                        <button class="log-control-btn" onclick="downloadLogs()">Export</button>
+                    </div>
+                </div>
+                <div class="logs-content" id="logsContent">
+                    <div style="color: #858585; text-align: center; padding: 20px;">
+                        No logs yet. Communication between agents will appear here.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSessionId = generateSessionId();
+        let currentTaskId = null;
+        let eventSource = null;
+        let communicationLogs = [];
+
+        document.getElementById('sessionId').value = currentSessionId;
+
+        // Logs Panel Functions
+        function toggleLogsPanel() {
+            const panel = document.getElementById('logsPanel');
+            const toggle = document.querySelector('.logs-toggle');
+            const icon = document.getElementById('logsToggleIcon');
+
+            panel.classList.toggle('collapsed');
+            toggle.classList.toggle('panel-open');
+
+            icon.textContent = panel.classList.contains('collapsed') ? '◀' : '▶';
+        }
+
+        function addLog(type, direction, message, data = null) {
+            const timestamp = new Date().toISOString();
+            const log = { timestamp, type, direction, message, data };
+            communicationLogs.push(log);
+
+            const logsContent = document.getElementById('logsContent');
+
+            // Remove placeholder if it exists
+            if (logsContent.children.length === 1 && logsContent.children[0].textContent.includes('No logs yet')) {
+                logsContent.innerHTML = '';
+            }
+
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+
+            const time = new Date(timestamp).toLocaleTimeString();
+            let dataHtml = '';
+            if (data) {
+                const jsonStr = JSON.stringify(data, null, 2);
+                dataHtml = `<div class="log-json">${escapeHtml(jsonStr)}</div>`;
+            }
+
+            logEntry.innerHTML = `
+                <div class="log-timestamp">${time}</div>
+                <div>
+                    <span class="log-type ${type}">${type}</span>
+                    <span class="log-direction">${direction}</span>
+                </div>
+                <div class="log-message">${escapeHtml(message)}</div>
+                ${dataHtml}
+            `;
+
+            logsContent.appendChild(logEntry);
+            logsContent.scrollTop = logsContent.scrollHeight;
+        }
+
+        function clearLogs() {
+            communicationLogs = [];
+            const logsContent = document.getElementById('logsContent');
+            logsContent.innerHTML = `
+                <div style="color: #858585; text-align: center; padding: 20px;">
+                    No logs yet. Communication between agents will appear here.
+                </div>
+            `;
+        }
+
+        function downloadLogs() {
+            const logText = communicationLogs.map(log => {
+                return `[${log.timestamp}] ${log.type.toUpperCase()} - ${log.direction}\n${log.message}\n${log.data ? JSON.stringify(log.data, null, 2) : ''}\n${'='.repeat(80)}\n`;
+            }).join('\n');
+
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `a2a-logs-${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Agent Status Checking
+        async function checkAgentStatus(port) {
+            try {
+                // Use a simple GET request to avoid CORS preflight
+                // We just want to know if something is listening on the port
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+                const response = await fetch(`http://localhost:${port}/`, {
+                    method: 'GET',
+                    mode: 'no-cors', // Avoid CORS preflight
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+                // With no-cors mode, we can't check response.ok, but if we get here without error, the port is open
+                return true;
+            } catch (error) {
+                // If we get any error (network, timeout, etc), the agent is offline
+                return false;
+            }
+        }
+
+        async function checkAllAgents() {
+            const agents = [
+                { port: 10101, name: 'Orchestrator' },
+                { port: 10102, name: 'Planner' },
+                { port: 10103, name: 'Air Ticketing' },
+                { port: 10104, name: 'Hotel Booking' },
+                { port: 10105, name: 'Car Rental' }
+            ];
+
+            for (const agent of agents) {
+                const isOnline = await checkAgentStatus(agent.port);
+                const statusDot = document.querySelector(`.agent-status[data-port="${agent.port}"]`);
+                if (statusDot) {
+                    if (isOnline) {
+                        statusDot.classList.add('active');
+                        statusDot.title = `${agent.name} - Online`;
+                    } else {
+                        statusDot.classList.remove('active');
+                        statusDot.title = `${agent.name} - Offline`;
+                    }
+                }
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            testConnection();
+            setupEventListeners();
+            checkAllAgents();
+            // Check agent status every 10 seconds
+            setInterval(checkAllAgents, 10000);
+        });
+
+        function setupEventListeners() {
+            document.getElementById('sendButton').addEventListener('click', sendMessage);
+            document.getElementById('messageInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+        }
+
+        function generateSessionId() {
+            return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function generateTaskId() {
+            return 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function useExample(element) {
+            document.getElementById('messageInput').value = element.textContent.trim();
+            document.getElementById('messageInput').focus();
+        }
+
+        function newSession() {
+            currentSessionId = generateSessionId();
+            document.getElementById('sessionId').value = currentSessionId;
+            clearChat();
+            addSystemMessage('New session started: ' + currentSessionId);
+        }
+
+        function clearChat() {
+            document.getElementById('messagesContainer').innerHTML = '';
+            document.getElementById('taskList').innerHTML = '<div style="font-size: 13px; color: #6c757d; text-align: center;">No active tasks</div>';
+        }
+
+        async function testConnection() {
+            const url = document.getElementById('orchestratorUrl').value;
+            updateStatus('connecting', 'Testing connection...');
+
+            const testPayload = {
+                jsonrpc: '2.0',
+                method: 'message/send',
+                params: {
+                    context_id: 'connection_test',
+                    task_id: 'test-' + Date.now(),
+                    message: {
+                        messageId: 'msg-test-' + Date.now(),
+                        role: 'user',
+                        parts: [{ text: 'ping' }]
+                    }
+                },
+                id: 'test-' + Date.now()
+            };
+
+            addLog('request', 'Client → Orchestrator', 'Testing connection', testPayload);
+
+            try {
+                // Simple connectivity test using message/send
+                const response = await fetch(url + '/', {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(testPayload)
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    addLog('response', 'Orchestrator → Client', 'Connection test response', data);
+
+                    if (data.result) {
+                        updateStatus('connected', 'Connected to Orchestrator');
+                        addSystemMessage('Successfully connected to orchestrator at ' + url);
+                    } else if (data.error) {
+                        addLog('error', 'Orchestrator → Client', 'Connection error: ' + data.error.message, data.error);
+                        throw new Error(data.error.message);
+                    }
+                } else {
+                    addLog('error', 'HTTP Error', `Status: ${response.status}`, null);
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+            } catch (error) {
+                updateStatus('disconnected', 'Connection failed');
+                addLog('error', 'Connection Failed', error.message, null);
+                addErrorMessage('Failed to connect to orchestrator: ' + error.message);
+            }
+        }
+
+        function updateStatus(status, text) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            statusDot.className = 'status-dot';
+            if (status === 'connected') {
+                statusDot.classList.add('connected');
+            }
+
+            statusText.textContent = text;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            const url = document.getElementById('orchestratorUrl').value;
+            currentTaskId = generateTaskId();
+
+            addUserMessage(message);
+            input.value = '';
+
+            showLoading();
+
+            const requestPayload = {
+                jsonrpc: '2.0',
+                method: 'message/send',
+                params: {
+                    context_id: currentSessionId,
+                    task_id: currentTaskId,
+                    message: {
+                        messageId: 'msg-' + currentTaskId,
+                        role: 'user',
+                        parts: [{ text: message }]
+                    }
+                },
+                id: currentTaskId
+            };
+
+            // Log outgoing request
+            addLog('request', 'Client → Orchestrator', 'Sending message to orchestrator', requestPayload);
+
+            try {
+                const response = await fetch(url + '/', {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(requestPayload)
+                });
+
+                hideLoading();
+
+                if (!response.ok) {
+                    addLog('error', 'Orchestrator → Client', `HTTP error: ${response.status}`, null);
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+
+                const data = await response.json();
+
+                // Log orchestrator response
+                addLog('response', 'Orchestrator → Client', 'Received response from orchestrator', data);
+
+                if (data.error) {
+                    addLog('error', 'Orchestrator → Client', 'Error: ' + data.error.message, data.error);
+                    addErrorMessage('Error: ' + data.error.message);
+                    return;
+                }
+
+                // Handle streaming responses
+                if (data.result && data.result.streaming) {
+                    subscribeToStream(url, currentSessionId, currentTaskId);
+                } else if (data.result) {
+                    handleTaskResult(data.result);
+                }
+
+            } catch (error) {
+                hideLoading();
+                addLog('error', 'Communication Error', error.message, null);
+                addErrorMessage('Failed to send message: ' + error.message);
+            }
+        }
+
+        function subscribeToStream(baseUrl, sessionId, taskId) {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            const streamUrl = baseUrl + '/stream?context_id=' + sessionId + '&task_id=' + taskId;
+            eventSource = new EventSource(streamUrl);
+
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleStreamEvent(data);
+                } catch (error) {
+                    console.error('Error parsing stream event:', error);
+                }
+            };
+
+            eventSource.onerror = (error) => {
+                console.error('Stream error:', error);
+                eventSource.close();
+                eventSource = null;
+            };
+        }
+
+        function handleStreamEvent(data) {
+            // Log stream events
+            if (data.result) {
+                const eventType = data.result.type;
+
+                if (eventType === 'task_status_update') {
+                    const status = data.result.status;
+                    addLog('response', 'Agent → Client', `Task status: ${status.state}`, data.result);
+
+                    updateTaskStatus(currentTaskId, status.state, status.message?.parts?.[0]?.text || '');
+
+                    if (status.message?.parts?.[0]?.text) {
+                        addAgentMessage(status.message.parts[0].text);
+                    }
+                } else if (eventType === 'task_artifact_update') {
+                    const artifact = data.result.artifact;
+                    const agentName = artifact.name?.split('-')[0] || 'Agent';
+                    addLog('response', `${agentName} → Client`, 'Artifact received', {
+                        name: artifact.name,
+                        parts: artifact.parts
+                    });
+                    handleArtifact(artifact);
+                } else if (eventType === 'task_update') {
+                    // Handle task completion
+                    if (data.result.status?.state === 'completed') {
+                        addLog('response', 'Agent → Client', 'Task completed', data.result);
+                        updateTaskStatus(currentTaskId, 'completed', 'Task completed');
+                        if (eventSource) {
+                            eventSource.close();
+                            eventSource = null;
+                        }
+                    }
+                } else {
+                    // Log any other event types
+                    addLog('response', 'Agent → Client', `Event: ${eventType}`, data.result);
+                }
+            }
+        }
+
+        function handleTaskResult(result) {
+            if (result.status) {
+                const state = result.status.state;
+                const message = result.status.message?.parts?.[0]?.text || '';
+
+                updateTaskStatus(currentTaskId, state, message);
+
+                if (message) {
+                    addAgentMessage(message);
+                }
+            }
+
+            if (result.artifacts && result.artifacts.length > 0) {
+                result.artifacts.forEach(artifact => handleArtifact(artifact));
+            }
+        }
+
+        function handleArtifact(artifact) {
+            if (artifact.parts && artifact.parts.length > 0) {
+                artifact.parts.forEach(part => {
+                    if (part.text) {
+                        addAgentMessage(part.text);
+                    } else if (part.data) {
+                        addAgentMessage('Received data artifact: ' + JSON.stringify(part.data, null, 2));
+                    }
+                });
+            }
+        }
+
+        function updateTaskStatus(taskId, state, description) {
+            let taskList = document.getElementById('taskList');
+            let taskItem = document.getElementById('task_' + taskId);
+
+            if (!taskItem) {
+                if (taskList.children[0]?.textContent?.includes('No active tasks')) {
+                    taskList.innerHTML = '';
+                }
+
+                taskItem = document.createElement('div');
+                taskItem.id = 'task_' + taskId;
+                taskItem.className = 'task-item';
+                taskList.appendChild(taskItem);
+            }
+
+            taskItem.className = 'task-item ' + state;
+            taskItem.innerHTML = `
+                <div class="task-name">${description || taskId}</div>
+                <div class="task-status">Status: ${state}</div>
+            `;
+        }
+
+        function addUserMessage(text) {
+            addMessage('user', 'You', text);
+        }
+
+        function addAgentMessage(text) {
+            addMessage('agent', 'Orchestrator', text);
+        }
+
+        function addSystemMessage(text) {
+            addMessage('system', 'System', text);
+        }
+
+        function addErrorMessage(text) {
+            addMessage('error', 'Error', text);
+        }
+
+        function addMessage(type, name, text) {
+            const container = document.getElementById('messagesContainer');
+            const time = new Date().toLocaleTimeString();
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + type;
+
+            const avatarClass = type === 'user' ? 'user-avatar' :
+                               type === 'agent' ? 'agent-avatar' :
+                               'system-avatar';
+
+            const initial = name.charAt(0).toUpperCase();
+
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <div class="message-avatar ${avatarClass}">${initial}</div>
+                    <span class="message-name">${name}</span>
+                    <span class="message-time">${time}</span>
+                </div>
+                <div class="message-content">${text}</div>
+            `;
+
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showLoading() {
+            const container = document.getElementById('messagesContainer');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'loadingIndicator';
+            loadingDiv.className = 'loading';
+            loadingDiv.innerHTML = `
+                <span>Agent is thinking</span>
+                <div class="loading-dots">
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                </div>
+            `;
+            container.appendChild(loadingDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function hideLoading() {
+            const loadingDiv = document.getElementById('loadingIndicator');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+        }
+    </script>
+</body>
+</html>

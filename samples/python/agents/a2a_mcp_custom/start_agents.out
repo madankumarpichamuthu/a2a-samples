@@ -1,0 +1,87 @@
+================================================
+Starting A2A MCP Agents
+================================================
+
+Make sure you have set GOOGLE_API_KEY in .env file
+
+Setting up Python virtual environment...
+Using CPython 3.12.12
+Creating virtual environment at: .venv
+warning: A virtual environment already exists at `.venv`. In the future, uv will require `--clear` to replace it
+Activate with: source .venv/bin/activate
+Virtual environment activated.
+
+Upgrading dependencies (fixing a2a-sdk version)...
+Resolved 32 packages in 342ms
+Prepared 17 packages in 1ms
+Uninstalled 17 packages in 174ms
+Installed 17 packages in 31ms
+ - anyio==4.9.0
+ + anyio==4.11.0
+ - cachetools==5.5.2
+ + cachetools==6.2.1
+ - certifi==2025.6.15
+ + certifi==2025.10.5
+ - charset-normalizer==3.4.2
+ + charset-normalizer==3.4.4
+ - google-api-core==2.25.1
+ + google-api-core==2.26.0
+ - google-auth==2.40.3
+ + google-auth==2.41.1
+ - greenlet==3.2.3
+ + greenlet==3.2.4
+ - httpx-sse==0.4.1
+ + httpx-sse==0.4.3
+ - idna==3.10
+ + idna==3.11
+ - protobuf==5.29.5
+ + protobuf==6.33.0
+ - pydantic==2.11.7
+ + pydantic==2.12.3
+ - pydantic-core==2.33.2
+ + pydantic-core==2.41.4
+ - pymysql==1.1.1
+ + pymysql==1.1.2
+ - requests==2.32.4
+ + requests==2.32.5
+ - sqlalchemy==2.0.41
+ + sqlalchemy==2.0.44
+ - typing-extensions==4.14.0
+ + typing-extensions==4.15.0
+ - typing-inspection==0.4.1
+ + typing-inspection==0.4.2
+
+Starting agents (logs in logs/)...
+
+[1/6] Starting MCP Server on port 10100...
+[2/6] Starting Orchestrator Agent on port 10101...
+[3/6] Starting Planner Agent on port 10102...
+[4/6] Starting Air Ticketing Agent on port 10103...
+[5/6] Starting Hotel Booking Agent on port 10104...
+[6/6] Starting Car Rental Agent on port 10105...
+
+================================================
+All agents starting... waiting 5 seconds
+================================================
+
+✓ All agents should now be running!
+
+Agent Status:
+  • MCP Server:       http://localhost:10100
+  • Orchestrator:     http://localhost:10101
+  • Planner:          http://localhost:10102
+  • Air Ticketing:    http://localhost:10103
+  • Hotel Booking:    http://localhost:10104
+  • Car Rental:       http://localhost:10105
+
+📝 Logs are in: logs/
+
+🌐 Open test_client.html in your browser to test
+
+Press Ctrl+C to stop all agents
+================================================
+
+
+Shutting down all agents...
+
+Shutting down all agents...
