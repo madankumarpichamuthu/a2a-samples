@@ -1,6 +1,64 @@
-# A2A with MCP as Registry
+# A2A with MCP as Registry - Custom Enhanced Version
 
 **Leveraging Model Context Protocol (MCP) as a standardized mechanism for discovering and retrieving Google A2A Agent Cards, enabling dynamic agent interaction using A2A.**
+
+## What's New in This Custom Version
+
+This is an enhanced version of the a2a_mcp sample with significant improvements to the orchestrator agent's workflow management and inter-agent communication. The following changes have been implemented to address SDK compatibility issues and improve the overall stability of multi-agent orchestration:
+
+### Key Enhancements
+
+#### 1. **Orchestrator Agent Improvements** (`orchestrator_agent.py`)
+
+- **Immediate Response Mechanism**: Added immediate yield when processing starts to prevent connection timeout errors. The orchestrator now sends a "Processing your request..." message right away to keep the client connection alive.
+
+- **Progress Update System**: Implemented periodic progress indicators (`.` symbols) throughout the workflow execution. This ensures the SDK queue doesn't close during long-running agent coordination tasks.
+
+- **Task ID Handling**: Removed the problematic pattern of yielding raw chunks from downstream agents, which was causing "Task in event doesn't match TaskManager" errors. Downstream agents create their own task IDs, and we no longer try to propagate those mismatched events.
+
+- **Connection Management**: Fixed the "Queue is closed" warning by ensuring at least one event is yielded immediately when the stream starts, preventing the SDK from closing the event queue prematurely.
+
+#### 2. **Workflow Communication** (`workflow.py`)
+
+- **Client Compatibility**: Updated to work with a2a-sdk version 0.3.10 by using `A2AClient` directly with `send_message_streaming()` instead of the newer `ClientFactory` pattern.
+
+- **Message Payload Simplification**: Removed `taskId` and `contextId` from message payloads sent to downstream agents, allowing each agent to manage its own task lifecycle independently.
+
+- **Timeout Configuration**: Increased HTTP client timeout to 300 seconds (from default 5 seconds) to accommodate LLM processing time in downstream agents.
+
+#### 3. **Testing & Deployment Tools**
+
+- **`start_agents.sh`**: Automated script to start all 6 agents (MCP Server, Orchestrator, Planner, Air Ticketing, Hotel Booking, Car Rental) in the background with proper logging.
+
+- **Browser Test Client** (`test_client.html`): Interactive web-based UI for testing the orchestrator with:
+  - Real-time agent communication logs
+  - Example travel planning queries
+  - Agent status monitoring
+  - Session management
+
+- **UI Proxy Server** (`serve_ui.py`): CORS-enabled proxy running on port 8001 to allow browser-based testing of the orchestrator on port 10101.
+
+#### 4. **Documentation**
+
+- **AGENTS_RUNNING.md**: Detailed guide for confirming all agents are running properly
+- **FINAL_SETUP.md**: Complete setup and testing instructions
+- **TEST_CLIENT_README.md**: Guide for using the browser-based test client
+
+### Technical Details
+
+**Problem**: The original implementation encountered several issues:
+- SDK queue closure warnings when orchestrator didn't yield events quickly enough
+- Task ID mismatches when trying to propagate events from downstream agents
+- Connection timeouts due to long processing times
+- Compatibility issues with a2a-sdk 0.3.10
+
+**Solution**: The custom version implements a pattern where:
+1. The orchestrator yields immediately upon receiving a request
+2. Progress updates are sent periodically during workflow execution
+3. Downstream agent events are collected but not directly yielded
+4. Final summary is generated from collected results at workflow completion
+
+This approach maintains connection stability while properly coordinating multiple specialized agents for complex travel planning scenarios.
 
 ## Table of Contents
 
