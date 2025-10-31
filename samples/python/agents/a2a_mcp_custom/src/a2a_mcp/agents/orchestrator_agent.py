@@ -208,6 +208,7 @@ class OrchestratorAgent(BaseAgent):
                     # Store the node and continue.
                     if isinstance(chunk.root.result, TaskArtifactUpdateEvent):
                         artifact = chunk.root.result.artifact
+                        logger.info(f'⭐ Received artifact: {artifact.name}, total results: {len(self.results) + 1}')
                         self.results.append(artifact)
                         # Yield progress update to keep connection alive
                         yield {
@@ -243,10 +244,21 @@ class OrchestratorAgent(BaseAgent):
                                     start_node_id = node.id
                         else:
                             # Not planner but artifacts from other tasks,
-                            # continue to the next node in the workflow.
-                            # client does not get the artifact,
-                            # a summary is shown at the end of the workflow.
+                            # Send artifact info to client so they can see agent activity
                             logger.info(f'Collected artifact from {artifact.name}')
+
+                            # Yield the actual artifact event from downstream agent
+                            # This allows the UI to see which agents responded
+                            yield chunk
+
+                            # Also yield a progress message about which agent completed
+                            agent_name = artifact.name.replace('-result', '').replace('Agent', ' ')
+                            yield {
+                                'response_type': 'text',
+                                'is_task_complete': False,
+                                'require_user_input': False,
+                                'content': f'✓ {agent_name} completed',
+                            }
                             continue
                 # DO NOT yield raw chunks from downstream agents - they have different task IDs
                 # which causes TaskManager errors. Instead, we yield simple progress updates
@@ -263,12 +275,22 @@ class OrchestratorAgent(BaseAgent):
         if self.graph.state == Status.COMPLETED:
             # All individual actions complete, now generate the summary
             logger.info(f'Generating summary for {len(self.results)} results')
-            summary = await self.generate_summary()
-            self.clear_state()
-            logger.info(f'Summary: {summary}')
-            yield {
-                'response_type': 'text',
-                'is_task_complete': True,
-                'require_user_input': False,
-                'content': summary,
-            }
+            logger.info(f'Results collected: {[r.name for r in self.results]}')
+            if len(self.results) == 0:
+                logger.warning('No results collected! Workflow may not have executed properly.')
+                yield {
+                    'response_type': 'text',
+                    'is_task_complete': True,
+                    'require_user_input': False,
+                    'content': 'No travel data was collected. The planner may not have created any tasks, or the task agents did not respond. Please try again with a more specific travel request.',
+                }
+            else:
+                summary = await self.generate_summary()
+                self.clear_state()
+                logger.info(f'Summary: {summary}')
+                yield {
+                    'response_type': 'text',
+                    'is_task_complete': True,
+                    'require_user_input': False,
+                    'content': summary,
+                }

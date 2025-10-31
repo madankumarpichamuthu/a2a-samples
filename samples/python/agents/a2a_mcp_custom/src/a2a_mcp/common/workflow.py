@@ -123,8 +123,11 @@ class WorkflowNode:
                 ) and isinstance(chunk.root.result, TaskArtifactUpdateEvent):
                     artifact = chunk.root.result.artifact
                     self.results = artifact
-                # Yield each response chunk to the orchestrator
-                yield chunk
+                    # Yield ONLY the artifact event, not raw downstream chunks
+                    # (raw chunks have different task IDs which cause SDK errors)
+                    yield chunk
+                # Do NOT yield other chunk types - they contain task IDs from downstream agents
+                # which cause "Task in event doesn't match TaskManager" errors
 
 
 class WorkflowGraph:
