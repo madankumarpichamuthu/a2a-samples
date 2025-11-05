@@ -25,9 +25,14 @@ class RateLimitTestClient:
         self,
         message_text: str = 'Hello',
         use_extension: bool = False,
-        custom_limits: dict[str, int] | None = None,
     ) -> dict[str, Any]:
-        """Send a single request to the agent."""
+        """Send a single request to the agent.
+
+        Args:
+            message_text: The text message to send
+            use_extension: Whether to activate the rate limiting extension
+                          (requests usage signals in response)
+        """
         payload = {
             'jsonrpc': '2.0',
             'id': f'test-{int(time.time() * 1000)}',
@@ -49,11 +54,6 @@ class RateLimitTestClient:
             headers['X-A2A-Extensions'] = (
                 'https://github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1'
             )
-
-            if custom_limits:
-                payload['params']['message']['metadata'] = {
-                    'github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/limits': custom_limits
-                }
 
         try:
             response = await self.client.post(
@@ -123,57 +123,78 @@ class RateLimitTestClient:
                 print(f'   Retry after: {rate_limit_info["retry_after"]:.1f}s')
 
     async def test_basic_rate_limiting(self):
-        """Test basic rate limiting with default settings."""
-        print('🧪 Testing Basic Rate Limiting (Default Settings)')
+        """Test rate limiting WITHOUT extension activation.
+
+        This demonstrates that rate limiting enforcement happens regardless
+        of extension activation. The extension only controls visibility.
+        """
+        print('🧪 Testing Rate Limiting WITHOUT Extension')
         print('=' * 60)
+        print('Rate limiting is enforced, but no usage signals in responses.')
+        print('(Extension controls communication, not enforcement)\n')
 
         start_time = time.time()
 
-        # Send 15 rapid requests to trigger rate limiting
+        # Send 15 rapid requests WITHOUT extension activation
+        # Rate limiting still happens!
         for i in range(1, 16):
-            response = await self.send_request(f'Hello #{i}')
+            response = await self.send_request(
+                f'Hello #{i}',
+                use_extension=False  # No extension - but still rate limited!
+            )
             self.print_response_info(i, response, start_time)
 
             # Small delay to avoid overwhelming the server
             await asyncio.sleep(0.1)
 
         print(f'\n⏱️  Total time: {time.time() - start_time:.1f}s')
+        print('\n💡 Key Insight: Rate limiting worked WITHOUT the extension!')
+        print('   The extension only adds usage signals, not enforcement.')
 
-    async def test_custom_limits(self):
-        """Test with custom rate limits via extension activation."""
-        print('\n\n🧪 Testing Custom Rate Limits (5 requests/minute)')
+    async def test_with_extension_signals(self):
+        """Test WITH extension activation to see usage signals.
+
+        Same rate limiting enforcement, but now we get visibility into
+        our usage through the extension's communication protocol.
+        """
+        print('\n\n🧪 Testing WITH Extension (Usage Signals Included)')
         print('=' * 60)
+        print('Same rate limiting (10 req/min), but now responses include usage info.')
+        print('(Extension provides visibility into enforcement)\n')
 
-        custom_limits = {'requests': 5, 'window': 60}
         start_time = time.time()
 
-        # Send 8 requests with custom limits
+        # Send 8 requests WITH extension activation
+        # Rate limiting still enforced, but now we see usage signals
         for i in range(1, 9):
             response = await self.send_request(
-                f'Custom limit test #{i}',
+                f'With signals #{i}',
                 use_extension=True,
-                custom_limits=custom_limits,
             )
             self.print_response_info(i, response, start_time)
             await asyncio.sleep(0.1)
 
         print(f'\n⏱️  Total time: {time.time() - start_time:.1f}s')
+        print('\n💡 Key Insight: Now we see remaining requests, retry timing, etc.')
+        print('   Extension gives us visibility without changing enforcement.')
+        print('   Server controls the rate limits, not the client.')
 
     async def test_recovery_after_wait(self):
-        """Test that rate limits recover after waiting."""
+        """Test that rate limits recover after waiting.
+
+        Token bucket continuously refills, so waiting allows recovery.
+        Server enforces 10 requests per minute (configured in agent).
+        """
         print('\n\n🧪 Testing Rate Limit Recovery')
         print('=' * 60)
-
-        custom_limits = {
-            'requests': 3,
-            'window': 10,
-        }  # 3 requests per 10 seconds
+        print('Server enforces 10 requests per minute with token bucket.')
+        print('Tokens refill continuously - waiting allows recovery.\n')
 
         # Exhaust the limit
-        print('Step 1: Exhaust rate limit (3 requests)')
-        for i in range(1, 5):
+        print('Step 1: Make rapid requests to exhaust rate limit')
+        for i in range(1, 13):
             response = await self.send_request(
-                f'Exhaust #{i}', use_extension=True, custom_limits=custom_limits
+                f'Exhaust #{i}', use_extension=True
             )
             rate_info = self.extract_rate_limit_info(response)
             is_limited = (
@@ -183,22 +204,21 @@ class RateLimitTestClient:
             print(
                 f'   Request {i}: {status} (Remaining: {rate_info.get("remaining", "N/A")})'
             )
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.05)
 
         # Wait for recovery
-        wait_time = 12  # Wait longer than the window
+        wait_time = 10
         print(
-            f'\nStep 2: Waiting {wait_time} seconds for rate limit recovery...'
+            f'\nStep 2: Waiting {wait_time} seconds for token refill...'
         )
         await asyncio.sleep(wait_time)
 
         # Test recovery
-        print('Step 3: Test recovery (should work again)')
-        for i in range(1, 3):
+        print('Step 3: Test recovery (tokens should have refilled)')
+        for i in range(1, 4):
             response = await self.send_request(
                 f'Recovery #{i}',
                 use_extension=True,
-                custom_limits=custom_limits,
             )
             rate_info = self.extract_rate_limit_info(response)
             is_limited = (
@@ -210,27 +230,35 @@ class RateLimitTestClient:
             )
             await asyncio.sleep(0.1)
 
+        print('\n💡 Key Insight: Token bucket refills continuously.')
+        print('   Waiting allows tokens to accumulate back up to capacity.')
+
     async def run_all_tests(self):
         """Run all rate limiting tests."""
-        print('🚀 Rate Limiting Extension Test Suite')
+        print('🚀 Rate Limiting Usage Signals Extension Test Suite')
         print('=' * 60)
-        print('Testing HelloWorld agent with rate limiting extension')
+        print('Testing HelloWorld agent with rate limiting')
         print('Agent URL:', self.base_url)
+        print()
+        print('This test suite demonstrates:')
+        print('1. Rate limiting enforcement (always active)')
+        print('2. Extension communication (optional visibility)')
+        print('3. Separation of enforcement vs. signals')
         print()
 
         try:
             await self.test_basic_rate_limiting()
-            await self.test_custom_limits()
+            await self.test_with_extension_signals()
             await self.test_recovery_after_wait()
 
             print('\n' + '=' * 60)
             print('✅ All tests completed!')
-            print('\nKey Observations:')
-            print('- Rate limiting prevents excessive requests')
-            print('- Extension metadata provides limit information')
-            print('- Different algorithms and limits can be configured')
-            print('- Limits recover after waiting the specified window')
-            print('- Error messages include retry timing information')
+            print('\nKey Learnings:')
+            print('- Rate limiting ALWAYS enforced by server (protects agent)')
+            print('- Extension = visibility, NOT enforcement')
+            print('- Clients get usage info when they activate extension')
+            print('- Server controls all policies (clients cannot set limits)')
+            print('- Token bucket allows burst traffic while maintaining steady rate')
 
         except (KeyError, ValueError, RuntimeError) as e:
             print(f'\n❌ Test failed with error: {e}')
@@ -241,7 +269,11 @@ class RateLimitTestClient:
 async def main():
     """Main function to run the rate limiting tests."""
 
-    parser = argparse.ArgumentParser(description='Test rate limiting extension')
+    parser = argparse.ArgumentParser(
+        description='Test rate limiting and usage signals extension',
+        epilog='This demonstrates the separation of enforcement (always active) '
+               'vs. communication (extension provides visibility)'
+    )
     parser.add_argument(
         '--url',
         default='http://localhost:9999',
@@ -249,9 +281,10 @@ async def main():
     )
     parser.add_argument(
         '--test',
-        choices=['basic', 'custom', 'recovery', 'all'],
+        choices=['basic', 'extension', 'recovery', 'all'],
         default='all',
-        help='Which test to run (default: all)',
+        help='Which test to run: basic (no extension), extension (with usage signals), '
+             'recovery (token refill), or all (default: all)',
     )
 
     args = parser.parse_args()
@@ -261,8 +294,8 @@ async def main():
     try:
         if args.test == 'basic':
             await client.test_basic_rate_limiting()
-        elif args.test == 'custom':
-            await client.test_custom_limits()
+        elif args.test == 'extension':
+            await client.test_with_extension_signals()
         elif args.test == 'recovery':
             await client.test_recovery_after_wait()
         else:

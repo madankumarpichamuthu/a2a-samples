@@ -15,11 +15,14 @@ from ratelimiter_ext import RateLimitingExtension, TokenBucketLimiter
 
 
 if __name__ == '__main__':
-    # Initialize rate limiting extension with token bucket algorithm
-    # Allows 10 requests per minute with burst capacity
-    rate_limiter = RateLimitingExtension(
-        limiter=TokenBucketLimiter(capacity_multiplier=2.0)
-    )
+    # Initialize rate limiter for enforcement (always active)
+    # Token bucket allows burst traffic up to 20 requests (10 * 2.0 multiplier)
+    # then maintains steady 10 requests per minute
+    rate_limiter = TokenBucketLimiter(capacity_multiplier=2.0)
+
+    # Initialize extension for communication (activated by client)
+    # This allows clients to receive usage signals in responses
+    rate_limit_extension = RateLimitingExtension()
     # --8<-- [start:AgentSkill]
     skill = AgentSkill(
         id='hello_world',
@@ -71,17 +74,21 @@ if __name__ == '__main__':
     )
 
     # Add rate limiting extension to agent cards
-    public_agent_card = rate_limiter.add_to_card(public_agent_card)
-    specific_extended_agent_card = rate_limiter.add_to_card(
+    # This advertises that the agent can communicate rate limit usage signals
+    public_agent_card = rate_limit_extension.add_to_card(public_agent_card)
+    specific_extended_agent_card = rate_limit_extension.add_to_card(
         specific_extended_agent_card
     )
 
-    # Create rate-limited agent executor using decorator pattern
-    base_executor = HelloWorldAgentExecutor()
-    rate_limited_executor = rate_limiter.wrap_executor(base_executor)
+    # Create agent executor with rate limiting enforcement built-in
+    # No wrapping needed - executor handles enforcement directly
+    executor = HelloWorldAgentExecutor(
+        rate_limiter=rate_limiter,
+        rate_limit_extension=rate_limit_extension
+    )
 
     request_handler = DefaultRequestHandler(
-        agent_executor=rate_limited_executor,
+        agent_executor=executor,
         task_store=InMemoryTaskStore(),
     )
 

@@ -1,385 +1,180 @@
-# Rate Limiting Extension for A2A Protocol
+# Rate Limiting Usage Signals Extension for A2A Protocol
 
-A comprehensive rate limiting extension for A2A protocol agents, providing flexible rate limiting capabilities with multiple algorithms and integration patterns.
+An A2A protocol extension that defines a standard way for agents to communicate rate limiting information to clients.
 
-## Features
+> **📁 Location**: `samples/python/extensions/ratelimiter/`
+>
+> **🚀 Want to see it in action?** Check out the full working demo: [HelloWorld with Rate Limiting](../../agents/helloworld_with_ratelimiter/) (`samples/python/agents/helloworld_with_ratelimiter/`)
 
-- **Multiple Rate Limiting Algorithms**:
-  - Token Bucket: Allows burst traffic while maintaining steady-state limits
-  - Sliding Window: Precise time-based rate limiting  
-  - Fixed Window: Memory-efficient fixed interval limiting
-  - Composite: Combine multiple strategies for complex policies
+## Purpose
 
-- **Flexible Integration**: 5 different integration patterns to suit various needs
-- **A2A Protocol Compliant**: Full support for extension headers and metadata
-- **Client & Server Support**: Works on both sides of A2A communication
-- **Configurable Keys**: Rate limit by IP, user ID, client ID, or custom identifiers
+**This extension does NOT enforce rate limits.** Agents should implement rate limiting independently to protect their resources. This extension provides a communication protocol for sharing usage data (remaining quota, retry timing, etc.) with clients.
 
-## Installation
+### Key Concepts
 
-```bash
-pip install ratelimiter-ext
-```
+- **Rate limiting enforcement**: Agent's responsibility (always active, independent of extension)
+- **Extension purpose**: Communication of usage signals to clients
+- **Extension activation**: Client signals "I understand rate limit data, please include it"
 
-Or install from source:
-```bash
-cd extensions/ratelimiter
-pip install -e .
-```
+Think of this extension like a dashboard - it doesn't control the car's speed, it just shows you how fast you're going.
+
+## Why This Matters
+
+Agents will enforce rate limits whether clients want them to or not - that's resource protection. But without this extension, clients are blind to their usage:
+
+- ❌ **Without extension**: Client gets "Rate limit exceeded" and must guess when to retry
+- ✅ **With extension**: Client sees "45 requests remaining, retry after 15.3s" and can act intelligently
 
 ## Quick Start
 
-### Option 1: Manual Rate Limiting (Full Control)
+### Agent Side (3 steps)
 
 ```python
 from ratelimiter_ext import RateLimitingExtension, TokenBucketLimiter
 
-# Initialize extension with token bucket algorithm
-limiter = RateLimitingExtension(
-    limiter=TokenBucketLimiter(capacity_multiplier=2.0)
-)
+# 1. Initialize limiter and extension
+self.rate_limiter = TokenBucketLimiter(capacity_multiplier=2.0)
+self.rate_limit_ext = RateLimitingExtension()
 
-# In your agent executor
-async def execute(self, context: RequestContext, event_queue: EventQueue):
-    # Check rate limits
-    limits = {"requests": 60, "window": 60}  # 60 requests per minute
-    result = limiter.check_limit(context, limits)
-    
-    if not result.allowed:
-        error_msg = f"Rate limit exceeded. Retry after {result.retry_after}s"
-        await event_queue.enqueue_event(new_agent_text_message(error_msg))
-        return
-    
-    # Process request normally
-    # ...
+# 2. Check rate limit
+usage = self.rate_limiter.check_limit(key="user:123", limit=10, window=60)
+
+# 3. Add usage signals if client requested them
+if self.rate_limit_ext.is_activated(context):
+    self.rate_limit_ext.add_usage_signals(message, usage)
 ```
 
-### Option 2: Automatic Integration (Easiest)
+See [examples/basic_usage.py](examples/basic_usage.py) for a complete implementation.
+
+### Advertise Extension in AgentCard
 
 ```python
 from ratelimiter_ext import RateLimitingExtension
 
-# Initialize extension
-rate_limiter = RateLimitingExtension()
-
-# Wrap your agent executor - automatic rate limiting applied
-wrapped_executor = rate_limiter.wrap_executor(original_executor)
-
-# Use in your agent
-request_handler = DefaultRequestHandler(
-    agent_executor=wrapped_executor,
-    task_store=InMemoryTaskStore(),
-)
+rate_limit_ext = RateLimitingExtension()
+agent_card = rate_limit_ext.add_to_card(agent_card)
 ```
 
-### Option 3: AgentCard Integration
+### Client Side: Requesting Usage Signals
 
-```python
-# Add rate limiting to your agent card
-public_agent_card = AgentCard(
-    name='My Rate Limited Agent',
-    # ... other config
-)
+Include the extension URI in the `X-A2A-Extensions` header:
 
-# Add extension to capabilities
-public_agent_card = rate_limiter.add_to_card(public_agent_card)
+```
+X-A2A-Extensions: https://github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1
 ```
 
-## Rate Limiting Algorithms
+## Response Format
 
-### Token Bucket
-
-Best for allowing burst traffic while maintaining long-term rate limits:
-
-```python
-from ratelimiter_ext import TokenBucketLimiter
-
-limiter = RateLimitingExtension(
-    limiter=TokenBucketLimiter(capacity_multiplier=2.0)
-)
-```
-
-**Use cases**: API gateways, user-facing services, bursty workloads
-
-### Sliding Window
-
-Most precise algorithm, maintains exact request counts over time:
-
-```python
-from ratelimiter_ext import SlidingWindowLimiter
-
-limiter = RateLimitingExtension(
-    limiter=SlidingWindowLimiter(max_entries_per_key=1000)
-)
-```
-
-**Use cases**: Strict rate limits, billing systems, quota enforcement
-
-### Fixed Window
-
-Memory efficient, resets counters at fixed intervals:
-
-```python
-from ratelimiter_ext import FixedWindowLimiter
-
-limiter = RateLimitingExtension(
-    limiter=FixedWindowLimiter()
-)
-```
-
-**Use cases**: Simple rate limiting, high-volume systems, basic quotas
-
-### Composite Limiting
-
-Combine multiple strategies for complex policies:
-
-```python
-from ratelimiter_ext import CompositeLimiter, TokenBucketLimiter, FixedWindowLimiter
-
-composite = CompositeLimiter({
-    "burst": TokenBucketLimiter(),      # Handle bursts
-    "sustained": FixedWindowLimiter()   # Long-term limits
-})
-
-limiter = RateLimitingExtension(limiter=composite)
-```
-
-**Use cases**: Complex SLAs, tiered service levels, sophisticated policies
-
-## Configuration
-
-### Rate Limit Configuration
-
-Rate limits are configured via message metadata or programmatically:
-
-```python
-# Via message metadata (A2A protocol compliant)
-limits = {
-    "requests": 100,     # Maximum requests
-    "window": 60,        # Time window in seconds
-}
-
-# Check limits
-result = limiter.check_limit(context, limits)
-```
-
-### Custom Key Extraction
-
-Customize how rate limit keys are generated:
-
-```python
-def custom_key_extractor(context: RequestContext) -> str:
-    # Rate limit by API key
-    if hasattr(context, 'api_key'):
-        return f"api_key:{context.api_key}"
-    
-    # Fallback to IP
-    return f"ip:{context.remote_addr}"
-
-limiter = RateLimitingExtension(
-    key_extractor=custom_key_extractor
-)
-```
-
-### A2A Protocol Integration
-
-The extension follows A2A protocol standards for activation and configuration:
-
-```python
-# Extension URI
-URI = "https://github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1"
-
-# Activate via X-A2A-Extensions header
-headers = {
-    "X-A2A-Extensions": URI
-}
-
-# Configure via message metadata
-message_metadata = {
-    "github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/limits": {
-        "requests": 50,
-        "window": 60
-    }
-}
-```
-
-## Client-Side Usage
-
-### Client Interceptor
-
-Automatically add rate limiting headers to outgoing requests:
-
-```python
-# Create client with rate limiting
-client_factory = rate_limiter.wrap_client_factory(original_factory)
-client = client_factory.create(agent_card)
-
-# All requests will include rate limiting headers
-response = await client.send_message(message)
-```
-
-### Manual Client Integration
-
-```python
-# Wrap existing client
-rate_limited_client = rate_limiter.wrap_client(original_client)
-
-# Use normally - rate limiting handled automatically
-async for event in rate_limited_client.send_message(message):
-    print(event)
-```
-
-## Integration Patterns
-
-Following the timestamp extension patterns, this extension provides 5 integration options:
-
-### 1. Self-Serve (Manual Control)
-```python
-result = limiter.check_limit(context, limits)
-if not result.allowed:
-    # Handle rate limit exceeded
-```
-
-### 2. Helper Classes
-```python
-helper = limiter.get_rate_limiter(context)
-result = helper.enforce_limit(limits)  # Raises exception if exceeded
-```
-
-### 3. Context Manager
-```python
-with limiter.get_rate_limiter(context) as rate_limit:
-    result = rate_limit.check_limit(limits)
-    # Handle result
-```
-
-### 4. Event Integration
-```python
-# Automatically add rate limit headers to all responses
-limiter.add_rate_limit_headers(result, response_message)
-```
-
-### 5. Full Decoration (Recommended)
-```python
-# Complete hands-off integration
-executor = limiter.wrap_executor(original_executor)
-```
-
-## Response Headers
-
-When rate limiting is active, responses include metadata with limit information:
+When the extension is activated, responses include usage signals in metadata:
 
 ```json
 {
-  "metadata": {
-    "github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/result": {
-      "allowed": true,
-      "remaining": 45,
-      "reset_time": 1640995260.0,
-      "limit_type": "token_bucket"
+  "message": {
+    "kind": "message",
+    "parts": [{"kind": "text", "text": "Hello World"}],
+    "role": "agent",
+    "metadata": {
+      "github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/result": {
+        "allowed": true,
+        "remaining": 45,
+        "reset_time": 1640995260.0,
+        "retry_after": 15.3,
+        "limit_type": "token_bucket"
+      }
     }
   }
 }
 ```
 
-## Error Handling
+## Rate Limiting Implementation
 
-### Rate Limit Exceeded
-
-When limits are exceeded, the extension provides detailed information:
+### Included Token Bucket Limiter
 
 ```python
-try:
-    result = limiter.check_and_enforce(context, limits)
-except RateLimitExceeded as e:
-    print(f"Rate limit exceeded: {e}")
-    print(f"Retry after: {e.result.retry_after} seconds")
-    print(f"Remaining requests: {e.result.remaining}")
+from ratelimiter_ext import TokenBucketLimiter
+
+limiter = TokenBucketLimiter(capacity_multiplier=2.0)
+result = limiter.check_limit("user:123", limit=60, window=60)
 ```
 
-### Automatic Error Responses
+- **Pros**: Simple, no dependencies, good for examples
+- **Cons**: In-memory only, not distributed
 
-When using the decorator pattern, rate limit exceeded responses are sent automatically:
+### Production Libraries
 
-```text
-"Rate limit exceeded. 0 requests remaining. Retry after 15.3 seconds."
+For real-world deployments, use battle-tested libraries like:
+- `python-limits`: Flexible, multiple backends (Redis, Memcache, etc.)
+- `slowapi`: FastAPI integration
+- `flask-limiter`: Flask integration
+
+See [examples/production_patterns.py](examples/production_patterns.py) for advanced patterns including:
+- Different limits per user tier
+- Client identity extraction from OAuth/API keys
+- Redis-backed distributed rate limiting
+- Graceful degradation
+
+## Extension Specification
+
+### Extension URI
+```
+https://github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1
 ```
 
-## Advanced Usage
+### Metadata Schema
 
-### Custom Rate Limiter
+**Field name**: `github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/result`
 
-Implement your own rate limiting algorithm:
-
-```python
-from ratelimiter_ext import RateLimiter, RateLimitResult
-
-class CustomLimiter(RateLimiter):
-    def check_limit(self, key: str, limit: int, window: int) -> RateLimitResult:
-        # Your custom logic here
-        return RateLimitResult(allowed=True, remaining=limit)
-    
-    def reset(self, key: str) -> None:
-        # Reset state for key
-        pass
-
-# Use custom limiter
-limiter = RateLimitingExtension(limiter=CustomLimiter())
+```typescript
+{
+  allowed: boolean;        // Was request allowed?
+  remaining: number;       // Requests remaining in quota
+  reset_time?: number;     // Unix timestamp when quota resets
+  retry_after?: number;    // Seconds to wait before retry (if denied)
+  limit_type: string;      // Algorithm used (e.g., "token_bucket")
+}
 ```
 
-### Persistent Storage
+## Design Philosophy
 
-For production use, implement persistent storage backends:
+This extension follows A2A protocol principles:
 
-```python
-import redis
+1. **Extensions are about data, not behavior**
+   - Extension = communication protocol
+   - Behavior (enforcement) = agent's responsibility
 
-class RedisTokenBucketLimiter(RateLimiter):
-    def __init__(self, redis_client):
-        self.redis = redis_client
-    
-    def check_limit(self, key: str, limit: int, window: int) -> RateLimitResult:
-        # Implement Redis-based token bucket
-        # ...
+2. **Optional client participation**
+   - Agents enforce limits regardless
+   - Extension gives clients visibility
+   - Clients choose whether to receive signals
+
+3. **Server-driven policies**
+   - Server determines rate limits (not client)
+   - Server extracts client identity (OAuth, API keys, etc.)
+   - Client cannot dictate their own limits
+
+## Examples
+
+### Code Patterns (Copy & Adapt)
+- **Basic Implementation**: [examples/basic_usage.py](examples/basic_usage.py) - Complete agent executor pattern
+- **Production Patterns**: [examples/production_patterns.py](examples/production_patterns.py) - OAuth, Redis, tiered limits, etc.
+
+### Runnable Demo (Run & Test)
+- **HelloWorld with Rate Limiting**: [samples/python/agents/helloworld_with_ratelimiter/](../../agents/helloworld_with_ratelimiter/) - Full working agent server with test scripts
+
+Start the demo:
+```bash
+cd samples/python/agents/helloworld_with_ratelimiter
+uv run .
 ```
 
-### Multi-Tier Rate Limiting
+## Production Considerations
 
-Implement different limits for different user tiers:
-
-```python
-def tier_based_key_extractor(context: RequestContext) -> str:
-    user_tier = getattr(context, 'user_tier', 'free')
-    user_id = getattr(context, 'user_id', 'anonymous')
-    return f"{user_tier}:{user_id}"
-
-def get_limits_for_tier(context: RequestContext) -> dict:
-    user_tier = getattr(context, 'user_tier', 'free')
-    
-    tier_limits = {
-        'free': {"requests": 10, "window": 60},
-        'premium': {"requests": 100, "window": 60}, 
-        'enterprise': {"requests": 1000, "window": 60}
-    }
-    
-    return tier_limits.get(user_tier, tier_limits['free'])
-
-# Usage
-limiter = RateLimitingExtension(
-    key_extractor=tier_based_key_extractor
-)
-
-limits = get_limits_for_tier(context)
-result = limiter.check_limit(context, limits)
-```
-
-## Extension URI
-
-This extension follows A2A protocol standards:
-
-- **Extension URI**: `https://github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1`
-- **Limits Metadata Field**: `github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/limits`
-- **Result Metadata Field**: `github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/result`
+1. **Distributed Systems**: Use Redis or similar for shared state across instances
+2. **Persistent Storage**: Survive restarts with persistent backends
+3. **Monitoring**: Track rate limit hits, denials, and usage patterns
+4. **Security**: Validate client identity with OAuth/API keys, not IP addresses
+5. **Graceful Failures**: Allow requests if rate limiter is unavailable
+6. **Audit Logging**: Log rate limit violations for security monitoring
 
 ## License
 

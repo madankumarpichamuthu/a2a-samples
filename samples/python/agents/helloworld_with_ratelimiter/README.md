@@ -1,50 +1,70 @@
-# Hello World Agent with Rate Limiting Extension
+# Hello World Agent with Rate Limiting
 
-This example demonstrates how to integrate the A2A Rate Limiting Extension with a HelloWorld agent. It showcases the complete implementation of rate limiting using the official A2A extension patterns.
+This example demonstrates how to implement rate limiting in an A2A agent and how to use the Rate Limiting Usage Signals Extension to communicate usage information to clients.
 
-## Features
+> **📁 Location**: `samples/python/agents/helloworld_with_ratelimiter/`
+>
+> **📚 Extension Documentation**: See the [Rate Limiting Extension README](../../extensions/ratelimiter/) (`samples/python/extensions/ratelimiter/`) for detailed documentation and code patterns.
 
-- **A2A Rate Limiting Extension**: Demonstrates proper integration of a reusable A2A extension
-- **Token Bucket Algorithm**: Allows burst traffic while maintaining steady-state rate limits
-- **Automatic Rate Limiting**: Uses decorator pattern for seamless integration
-- **Extension Metadata**: Properly registers extension capabilities in AgentCard
-- **Rate Limit Headers**: Includes rate limit information in responses
+## Key Concepts
 
-## Rate Limiting Configuration
+This example illustrates the important distinction between:
 
-This agent is configured with:
-- **Algorithm**: Token Bucket with 2x capacity multiplier
-- **Default Limits**: 10 requests per minute (configurable via metadata)
-- **Key Extraction**: Automatic by client ID, IP address, or user ID
-- **Response Headers**: Rate limit status included in all responses
+1. **Rate Limiting Enforcement** (Agent's Responsibility)
+   - Always active, protects agent resources
+   - Implemented directly in the agent executor
+   - Happens regardless of extension activation
+
+2. **Rate Limiting Communication** (Extension's Purpose)
+   - Optional, controlled by client activation
+   - Provides visibility into usage quotas
+   - Helps clients make intelligent decisions
+
+**Analogy**: The agent enforces a speed limit (rate limiting). The extension is like a speedometer - it shows you how fast you're going, but doesn't control your speed.
+
+## What This Example Shows
+
+- ✅ Agent **always** enforces rate limits (10 requests/minute)
+- ✅ Extension activation = "Please include usage signals in responses"
+- ✅ Clients can see remaining quota and retry timing when extension is activated
+- ✅ Rate limiting works whether extension is activated or not
+- ✅ Token bucket algorithm allows controlled burst traffic
+
+## Architecture
+
+### Without Extension (Basic Rate Limiting)
+
+```
+Client Request → Agent enforces limit → Response
+                      ↓
+                 If exceeded: "Rate limit exceeded"
+                 If allowed: "Hello World"
+```
+
+### With Extension (Rate Limiting + Signals)
+
+```
+Client Request → Agent enforces limit → Response + Usage Signals
+  (activates        ↓                       ↓
+   extension)  If exceeded: "Rate limit exceeded" + {remaining: 0, retry_after: 15.3}
+               If allowed: "Hello World" + {remaining: 45, limit_type: "token_bucket"}
+```
 
 ## Getting Started
 
 ### 1. Start the Server
 
 ```bash
+cd samples/python/agents/helloworld_with_ratelimiter
 uv run .
 ```
 
 The agent will start on `http://localhost:9999` with rate limiting active.
 
-### 2. Basic Test Client
+### 2. Test Without Extension
 
-```bash
-uv run test_client.py
-```
+Rate limiting is enforced, but you don't get usage signals:
 
-### 3. Rate Limiting Test
-
-```bash
-uv run rate_limit_test.py
-```
-
-This will demonstrate rate limiting by making multiple rapid requests.
-
-## Testing Rate Limiting
-
-### Normal Request
 ```bash
 curl -X POST http://localhost:9999/ \
   -H "Content-Type: application/json" \
@@ -63,7 +83,25 @@ curl -X POST http://localhost:9999/ \
   }'
 ```
 
-### Request with Extension Activation
+Response (rate limit enforced, no usage signals):
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "test",
+  "result": {
+    "message": {
+      "kind": "message",
+      "parts": [{"kind": "text", "text": "Hello World"}],
+      "role": "agent"
+    }
+  }
+}
+```
+
+### 3. Test With Extension
+
+Same rate limiting, but now you get usage information:
+
 ```bash
 curl -X POST http://localhost:9999/ \
   -H "Content-Type: application/json" \
@@ -77,21 +115,13 @@ curl -X POST http://localhost:9999/ \
         "kind": "message",
         "messageId": "msg-1",
         "parts": [{"kind": "text", "text": "Hello"}],
-        "role": "user",
-        "metadata": {
-          "github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/limits": {
-            "requests": 5,
-            "window": 60
-          }
-        }
+        "role": "user"
       }
     }
   }'
 ```
 
-## Response Format
-
-### Successful Response (Within Rate Limit)
+Response (same rate limiting, now with usage signals):
 ```json
 {
   "jsonrpc": "2.0",
@@ -99,18 +129,13 @@ curl -X POST http://localhost:9999/ \
   "result": {
     "message": {
       "kind": "message",
-      "messageId": "msg-response-123",
-      "parts": [
-        {
-          "kind": "text",
-          "text": "Hello World"
-        }
-      ],
+      "parts": [{"kind": "text", "text": "Hello World"}],
       "role": "agent",
       "metadata": {
         "github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/result": {
           "allowed": true,
-          "remaining": 4,
+          "remaining": 9,
+          "reset_time": 1640995260.0,
           "limit_type": "token_bucket"
         }
       }
@@ -119,145 +144,250 @@ curl -X POST http://localhost:9999/ \
 }
 ```
 
-### Rate Limited Response
+### 4. Test Rate Limit Exceeded
+
+Make multiple rapid requests to trigger rate limiting:
+
+```bash
+# Run this multiple times quickly
+for i in {1..15}; do
+  curl -X POST http://localhost:9999/ \
+    -H "Content-Type: application/json" \
+    -H "X-A2A-Extensions: https://github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1" \
+    -d '{
+      "jsonrpc": "2.0",
+      "id": "test-'$i'",
+      "method": "message/send",
+      "params": {
+        "message": {
+          "kind": "message",
+          "messageId": "msg-'$i'",
+          "parts": [{"kind": "text", "text": "Hello"}],
+          "role": "user"
+        }
+      }
+    }'
+  echo ""
+done
+```
+
+After exceeding the limit, you'll see:
+
 ```json
 {
   "jsonrpc": "2.0",
-  "id": "test",
+  "id": "test-11",
   "result": {
     "message": {
       "kind": "message",
-      "messageId": "msg-response-456",
-      "parts": [
-        {
-          "kind": "text",
-          "text": "Rate limit exceeded. 0 requests remaining. Retry after 15.3 seconds."
+      "parts": [{
+        "kind": "text",
+        "text": "Rate limit exceeded. 0 requests remaining. Retry after 15.3 seconds."
+      }],
+      "role": "agent",
+      "metadata": {
+        "github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/result": {
+          "allowed": false,
+          "remaining": 0,
+          "retry_after": 15.3,
+          "limit_type": "token_bucket"
         }
-      ],
-      "role": "agent"
+      }
     }
   }
 }
 ```
 
-## Architecture Overview
+## Testing with Provided Scripts
 
-### Extension Integration
+### Basic Client Test
 
-This example demonstrates the **decorator pattern** for extension integration:
+```bash
+uv run test_client.py
+```
 
-1. **Extension Initialization**: Rate limiting extension with token bucket algorithm
-2. **AgentCard Integration**: Extension metadata added to capabilities
-3. **Executor Wrapping**: Base executor wrapped with rate limiting logic
-4. **Automatic Operation**: Rate limits applied transparently
+This runs a standard A2A client that makes requests to the agent.
 
-### Code Structure
+### Rate Limiting Test Suite
+
+```bash
+uv run rate_limit_test.py
+```
+
+This demonstrates rate limiting behavior by:
+- Making rapid requests to trigger limits
+- Showing enforcement works without extension
+- Showing extension provides visibility
+- Testing recovery after waiting
+
+Run specific tests:
+```bash
+# Test basic rate limiting (without extension)
+uv run rate_limit_test.py --test basic
+
+# Test with extension signals
+uv run rate_limit_test.py --test extension
+
+# Test rate limit recovery (token refill)
+uv run rate_limit_test.py --test recovery
+```
+
+## Rate Limiting Configuration
+
+### Default Limits
+
+- **Rate**: 10 requests per minute
+- **Algorithm**: Token bucket with 2x capacity multiplier
+- **Burst capacity**: 20 requests (allows initial burst, then sustained rate)
+- **Identification**: By IP address (for demo; use OAuth/API keys in production)
+
+### How Token Bucket Works
+
+```
+Bucket capacity: 20 tokens (10 requests × 2.0 multiplier)
+Refill rate: 10 tokens per minute (0.167 tokens/second)
+
+Timeline:
+t=0s:  20 tokens available → Can make 20 requests immediately
+t=10s: 21 tokens available → Refilled 1-2 tokens
+t=60s: 20 tokens available → Back to capacity (max)
+
+Behavior:
+- Allows burst of 20 requests
+- Then limits to 10 requests/minute sustained
+- Fair to both bursty and steady traffic
+```
+
+## Code Walkthrough
+
+### Agent Executor (`agent_executor.py`)
+
+The executor shows the minimal changes needed to add rate limiting to a basic HelloWorld agent:
 
 ```python
-# 1. Initialize extension
-rate_limiter = RateLimitingExtension(
-    limiter=TokenBucketLimiter(capacity_multiplier=2.0)
-)
+class HelloWorldAgentExecutor(AgentExecutor):
+    def __init__(self, rate_limiter, rate_limit_extension):
+        self.agent = HelloWorldAgent()
+        self.rate_limiter = rate_limiter           # For enforcement
+        self.rate_limit_extension = rate_limit_extension  # For communication
 
-# 2. Add to agent card
-public_agent_card = rate_limiter.add_to_card(public_agent_card)
+    async def execute(self, context, event_queue):
+        # Step 1: Extract client identity
+        client_key = self._extract_client_key(context)
 
-# 3. Wrap executor
-base_executor = HelloWorldAgentExecutor() 
-rate_limited_executor = rate_limiter.wrap_executor(base_executor)
+        # Step 2: ALWAYS enforce rate limits (10 requests/minute)
+        usage = self.rate_limiter.check_limit(client_key, limit=10, window=60)
 
-# 4. Use in request handler
-request_handler = DefaultRequestHandler(
-    agent_executor=rate_limited_executor,
-    task_store=InMemoryTaskStore(),
+        # Step 3: If rate limited, return error
+        if not usage.allowed:
+            message = new_agent_text_message("Rate limit exceeded...")
+
+            # Extension: Add signals IF client requested them
+            if self.rate_limit_extension.is_activated(context):
+                self.rate_limit_extension.add_usage_signals(message, usage)
+
+            await event_queue.enqueue_event(message)
+            return
+
+        # Step 4: Process request normally
+        result = await self.agent.invoke()
+        message = new_agent_text_message(result)
+
+        # Extension: Add signals IF client requested them
+        if self.rate_limit_extension.is_activated(context):
+            self.rate_limit_extension.add_usage_signals(message, usage)
+
+        await event_queue.enqueue_event(message)
+```
+
+**Key Differences from Basic HelloWorld:**
+- Added rate limiter and extension to `__init__`
+- Added client identification step
+- Added rate limit check before processing
+- Conditionally add usage signals based on extension activation
+
+### Server Setup (`__main__.py`)
+
+```python
+# Separate initialization: enforcement vs communication
+rate_limiter = TokenBucketLimiter(capacity_multiplier=2.0)  # Enforcement
+rate_limit_extension = RateLimitingExtension()  # Communication
+
+# Advertise extension capability
+agent_card = rate_limit_extension.add_to_card(agent_card)
+
+# Create executor with both components
+executor = HelloWorldAgentExecutor(
+    rate_limiter=rate_limiter,
+    rate_limit_extension=rate_limit_extension
 )
 ```
 
-## Rate Limiting Behavior
+## Understanding the Extension
 
-### Token Bucket Algorithm
+### What the Extension IS
 
-- **Capacity**: 20 tokens (10 requests × 2.0 multiplier)
-- **Refill Rate**: 10 tokens per minute
-- **Burst Allowance**: Up to 20 requests initially, then steady 10/minute
-- **Key Extraction**: Automatic based on client context
+- ✅ A communication protocol for usage signals
+- ✅ Optional (client decides whether to activate)
+- ✅ Informational (helps clients make decisions)
+- ✅ Standardized metadata format
 
-### Extension Activation
+### What the Extension is NOT
 
-The rate limiting extension can be activated in multiple ways:
+- ❌ Rate limiting enforcement (agent does this)
+- ❌ Required for rate limiting to work
+- ❌ A way for clients to control limits
+- ❌ Client-side rate limiting
 
-1. **Always Active**: Via decorator pattern (current implementation)
-2. **Header-Based**: Via `X-A2A-Extensions` header
-3. **Metadata-Based**: Via message metadata configuration
-4. **Manual**: Explicit checks in agent code
+### Extension Activation Flow
 
-## Extension Benefits
+```
+1. Agent advertises extension in AgentCard
+   → "I can send rate limit usage signals"
 
-### For Developers
-- **Zero Code Changes**: Decorator pattern requires no agent logic modifications
-- **Flexible Configuration**: Multiple algorithms and parameters
-- **A2A Compliant**: Follows official extension specifications
-- **Production Ready**: Thread-safe, memory efficient
+2. Client includes extension URI in X-A2A-Extensions header
+   → "I understand rate limit signals, please include them"
 
-### For Operators
-- **Resource Protection**: Prevents abuse and overload
-- **Cost Control**: Manages expensive operations
-- **Monitoring**: Built-in rate limit metrics
-- **Graceful Degradation**: Informative error responses
+3. Agent checks is_activated(context)
+   → Returns True if client requested signals
 
-## Comparison with Basic HelloWorld
-
-| Aspect | Basic HelloWorld | With Rate Limiting |
-|--------|------------------|-------------------|
-| **Request Processing** | Unlimited | Rate limited |
-| **Resource Usage** | Uncontrolled | Protected |
-| **Response Headers** | Basic | Includes rate limit info |
-| **Extension Support** | None | Full A2A extension |
-| **Production Readiness** | Demo only | Production capable |
-
-## Advanced Configuration
-
-### Custom Rate Limits
-
-To configure different rate limits per client:
-
-```python
-def custom_key_extractor(context: RequestContext) -> str:
-    # Extract client tier from context
-    client_tier = getattr(context, 'client_tier', 'free')
-    client_id = getattr(context, 'client_id', 'unknown')
-    return f"{client_tier}:{client_id}"
-
-# Different limits per tier
-tier_limits = {
-    'free': {"requests": 10, "window": 60},
-    'premium': {"requests": 100, "window": 60},
-    'enterprise': {"requests": 1000, "window": 60}
-}
-
-rate_limiter = RateLimitingExtension(
-    key_extractor=custom_key_extractor
-)
+4. Agent adds usage signals to response metadata
+   → Client receives detailed usage information
 ```
 
-### Multiple Algorithms
+## Production Considerations
 
-Combine different rate limiting strategies:
+This example uses simplified approaches for demonstration. For production:
 
+**❌ Don't use IP addresses for client identity**
 ```python
-from ratelimiter_ext import CompositeLimiter, TokenBucketLimiter, FixedWindowLimiter
-
-composite = CompositeLimiter({
-    "burst": TokenBucketLimiter(),      # Handle traffic bursts
-    "sustained": FixedWindowLimiter()   # Long-term rate control
-})
-
-rate_limiter = RateLimitingExtension(limiter=composite)
+client_key = f"ip:{context.remote_addr}"  # Can be spoofed, shared
 ```
+
+**✅ Use authenticated identity instead**
+```python
+def _extract_client_key(self, context):
+    token = self._verify_oauth_token(context.authorization)
+    return f"user:{token.user_id}"
+```
+
+**❌ Don't use in-memory rate limiters in distributed systems**
+```python
+rate_limiter = TokenBucketLimiter()  # Lost on restart, not shared across instances
+```
+
+**✅ Use distributed rate limiter (Redis, etc.)**
+```python
+from limits import RateLimitItemPerSecond
+from limits.storage import RedisStorage
+storage = RedisStorage("redis://localhost:6379")
+```
+
+See the [extension's production patterns](../../extensions/ratelimiter/examples/production_patterns.py) for complete examples.
 
 ## Build Container Image
 
-Agent can also be built using a container file:
+You can containerize the agent:
 
 ```bash
 cd samples/python/agents/helloworld_with_ratelimiter
@@ -274,34 +404,53 @@ cd samples/python/hosts/cli
 uv run . --agent http://localhost:9999
 ```
 
-## Extension Specification
+## Comparison with Basic HelloWorld
 
-- **Extension URI**: `https://github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1`
-- **Limits Metadata**: `github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/limits`
-- **Result Metadata**: `github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1/result`
-- **Activation Header**: `X-A2A-Extensions`
+| Aspect | Basic HelloWorld | With Rate Limiting |
+|--------|------------------|-------------------|
+| **Request Handling** | Unlimited | 10 requests/minute |
+| **Resource Protection** | None | Token bucket enforcement |
+| **Usage Visibility** | None | Optional via extension |
+| **Burst Traffic** | Accepted | Controlled (20 initial, then 10/min) |
+| **Production Ready** | Demo only | Closer to production patterns |
+
+## Key Takeaways
+
+1. **Enforcement is separate from communication**
+   - Agent always enforces limits
+   - Extension optionally communicates usage
+
+2. **Extension activation is client-driven**
+   - Client says "I want usage info"
+   - Agent decides whether to enforce (always yes)
+
+3. **Server controls policies**
+   - Server determines rate limits
+   - Server extracts client identity
+   - Client cannot set their own limits
+
+4. **Token bucket allows bursts**
+   - Good for real-world traffic patterns
+   - Balances burst and sustained rates
+
+## Next Steps
+
+- Read the extension documentation in `samples/python/extensions/ratelimiter/README.md`
+- Explore production rate limiting libraries (python-limits, slowapi, etc.)
+- Implement authentication-based client identification
+- Add distributed rate limiting with Redis
+- Monitor rate limit metrics in production
 
 ## Disclaimer
 
 This sample demonstrates A2A protocol extension patterns and rate limiting concepts. For production use, consider:
+
 - Persistent storage backends (Redis, database)
-- Distributed rate limiting across multiple instances  
-- Advanced security and authentication
+- Distributed rate limiting across multiple instances
+- Authentication and authorization (OAuth, API keys)
 - Monitoring and alerting integration
 - Custom rate limiting policies per use case
 
-Important: The sample code provided is for demonstration purposes and illustrates
-the mechanics of the Agent-to-Agent (A2A) protocol. When building production
-applications, it is critical to treat any agent operating outside of your direct
-control as a potentially untrusted entity.
+**Important**: The sample code provided is for demonstration purposes and illustrates the mechanics of the Agent-to-Agent (A2A) protocol. When building production applications, it is critical to treat any agent operating outside of your direct control as a potentially untrusted entity.
 
-All data received from an external agent—including but not limited to its
-AgentCard, messages, artifacts, and task statuses—should be handled as
-untrusted input. For example, a malicious agent could provide an AgentCard
-containing crafted data in its fields (e.g., description, name,
-skills.description). If this data is used without sanitization to construct
-prompts for a Large Language Model (LLM), it could expose your application to
-prompt injection attacks. Failure to properly validate and sanitize this data
-before use can introduce security vulnerabilities into your application.
-
-Developers are responsible for implementing appropriate security measures, such as input validation and secure handling of credentials to protect their systems and users.
+All data received from an external agent—including but not limited to its AgentCard, messages, artifacts, and task statuses—should be handled as untrusted input. Developers are responsible for implementing appropriate security measures, such as input validation and secure handling of credentials to protect their systems and users.
