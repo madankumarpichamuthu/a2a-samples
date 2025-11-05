@@ -186,10 +186,9 @@ class DistributedRateLimitExecutor(AgentExecutor):
 
     async def execute(self, context: RequestContext, event_queue: EventQueue):
         """Execute with distributed rate limiting."""
-        client_key = self._get_client_key(context)
-
         # Check rate limit using python-limits library
         # Uncomment for production use:
+        # client_key = self._get_client_key(context)
         # if not self.limiter.hit(self.rate_limit, client_key):
         #     # Rate limited
         #     message = new_agent_text_message("Rate limit exceeded")

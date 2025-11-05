@@ -16,8 +16,6 @@ This extension only handles communication of that state back to the client.
 
 __version__ = "0.1.0"
 
-from typing import Any
-
 from a2a.extensions.common import find_extension_by_uri
 from a2a.server.agent_execution import RequestContext
 from a2a.types import (
