@@ -59,7 +59,7 @@ agent_card = rate_limit_ext.add_to_card(agent_card)
 
 Include the extension URI in the `X-A2A-Extensions` header:
 
-```
+```text
 X-A2A-Extensions: https://github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1
 ```
 
@@ -116,7 +116,7 @@ See [examples/production_patterns.py](examples/production_patterns.py) for advan
 ## Extension Specification
 
 ### Extension URI
-```
+```text
 https://github.com/a2aproject/a2a-samples/extensions/ratelimiter/v1
 ```
 

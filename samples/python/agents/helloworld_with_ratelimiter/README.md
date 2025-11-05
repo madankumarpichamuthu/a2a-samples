@@ -34,7 +34,7 @@ This example illustrates the important distinction between:
 
 ### Without Extension (Basic Rate Limiting)
 
-```
+```text
 Client Request → Agent enforces limit → Response
                       ↓
                  If exceeded: "Rate limit exceeded"
@@ -43,7 +43,7 @@ Client Request → Agent enforces limit → Response
 
 ### With Extension (Rate Limiting + Signals)
 
-```
+```text
 Client Request → Agent enforces limit → Response + Usage Signals
   (activates        ↓                       ↓
    extension)  If exceeded: "Rate limit exceeded" + {remaining: 0, retry_after: 15.3}
@@ -243,7 +243,7 @@ uv run rate_limit_test.py --test recovery
 
 ### How Token Bucket Works
 
-```
+```text
 Bucket capacity: 20 tokens (10 requests × 2.0 multiplier)
 Refill rate: 10 tokens per minute (0.167 tokens/second)
 
@@ -341,7 +341,7 @@ executor = HelloWorldAgentExecutor(
 
 ### Extension Activation Flow
 
-```
+```text
 1. Agent advertises extension in AgentCard
    → "I can send rate limit usage signals"
 
