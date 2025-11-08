@@ -43,8 +43,8 @@ class MyAgentExecutor(AgentExecutor):
         client_key = self._get_client_key(context)
         usage = self.rate_limiter.check_limit(
             key=client_key,
-            limit=10,    # 10 requests
-            window=60    # per minute
+            limit=10,  # 10 requests
+            window=60,  # per minute
         )
 
         # Step 2: If rate limited, return error message
@@ -79,9 +79,9 @@ def create_agent_card() -> AgentCard:
 
     # Create base agent card
     agent_card = AgentCard(
-        name='My Agent',
-        description='An agent with rate limiting',
-        url='http://localhost:9999/',
+        name="My Agent",
+        description="An agent with rate limiting",
+        url="http://localhost:9999/",
         capabilities=AgentCapabilities(streaming=True),
     )
 

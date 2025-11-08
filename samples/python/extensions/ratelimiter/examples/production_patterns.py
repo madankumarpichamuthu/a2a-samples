@@ -27,11 +27,13 @@ from ratelimiter_ext import RateLimitingExtension, RateLimitResult
 # Pattern 1: Different Limits per User Tier
 # ============================================================================
 
+
 class TieredRateLimitExecutor(AgentExecutor):
     """Agent with different rate limits based on user tier."""
 
     def __init__(self):
         from ratelimiter_ext import TokenBucketLimiter
+
         self.rate_limiter = TokenBucketLimiter(capacity_multiplier=2.0)
         self.rate_limit_ext = RateLimitingExtension()
 
@@ -48,35 +50,30 @@ class TieredRateLimitExecutor(AgentExecutor):
         # return token.get('tier', 'free')
 
         # Placeholder for example
-        return 'free'
+        return "free"
 
     def get_client_limits(self, context: RequestContext) -> Dict[str, int]:
         """Get rate limits based on user's tier."""
         tier = self._extract_user_tier(context)
 
         limits = {
-            'free': {'limit': 10, 'window': 60},      # 10 req/min
-            'premium': {'limit': 100, 'window': 60},   # 100 req/min
-            'enterprise': {'limit': 1000, 'window': 60}  # 1000 req/min
+            "free": {"limit": 10, "window": 60},  # 10 req/min
+            "premium": {"limit": 100, "window": 60},  # 100 req/min
+            "enterprise": {"limit": 1000, "window": 60},  # 1000 req/min
         }
 
-        return limits.get(tier, limits['free'])
+        return limits.get(tier, limits["free"])
 
     async def execute(self, context: RequestContext, event_queue: EventQueue):
         """Execute with tiered rate limiting."""
         client_key = self._get_client_key(context)
         limits = self.get_client_limits(context)
 
-        usage = self.rate_limiter.check_limit(
-            key=client_key,
-            limit=limits['limit'],
-            window=limits['window']
-        )
+        usage = self.rate_limiter.check_limit(key=client_key, limit=limits["limit"], window=limits["window"])
 
         if not usage.allowed:
             message = new_agent_text_message(
-                f"Rate limit exceeded for your tier. "
-                f"Retry after {usage.retry_after:.1f}s."
+                f"Rate limit exceeded for your tier. Retry after {usage.retry_after:.1f}s."
             )
             if self.rate_limit_ext.is_activated(context):
                 self.rate_limit_ext.add_usage_signals(message, usage)
@@ -99,6 +96,7 @@ class TieredRateLimitExecutor(AgentExecutor):
 # Pattern 2: Client Identity Extraction (OAuth/API Keys)
 # ============================================================================
 
+
 class SecureIdentityExtractor(AgentExecutor):
     """Agent with secure client identity extraction."""
 
@@ -112,14 +110,14 @@ class SecureIdentityExtractor(AgentExecutor):
         """
 
         # Option 1: Extract from OAuth token
-        auth_header = getattr(context, 'authorization', None)
-        if auth_header and auth_header.startswith('Bearer '):
+        auth_header = getattr(context, "authorization", None)
+        if auth_header and auth_header.startswith("Bearer "):
             token = self._verify_oauth_token(auth_header)
             if token:
                 return f"user:{token.get('user_id', 'unknown')}"
 
         # Option 2: Extract from API key
-        api_key = getattr(context, 'x_api_key', None)
+        api_key = getattr(context, "x_api_key", None)
         if api_key:
             # Verify API key and get associated client ID
             client_id = self._verify_api_key(api_key)
@@ -128,7 +126,7 @@ class SecureIdentityExtractor(AgentExecutor):
 
         # Option 3: Fallback to IP address (not recommended for production)
         # Consider blocking or using very restrictive limits for unidentified clients
-        remote_addr = getattr(context, 'remote_addr', 'unknown')
+        remote_addr = getattr(context, "remote_addr", "unknown")
         logging.warning(f"Unidentified client from {remote_addr}, using IP-based rate limit")
         return f"ip:{remote_addr}"
 
@@ -160,6 +158,7 @@ class SecureIdentityExtractor(AgentExecutor):
 # ============================================================================
 # Pattern 3: Redis-Backed Distributed Rate Limiting
 # ============================================================================
+
 
 class DistributedRateLimitExecutor(AgentExecutor):
     """Agent with Redis-backed distributed rate limiting.
@@ -207,6 +206,7 @@ class DistributedRateLimitExecutor(AgentExecutor):
 # Pattern 4: Graceful Degradation
 # ============================================================================
 
+
 class GracefulDegradationExecutor(AgentExecutor):
     """Agent with graceful degradation if rate limiter fails.
 
@@ -216,6 +216,7 @@ class GracefulDegradationExecutor(AgentExecutor):
 
     def __init__(self):
         from ratelimiter_ext import TokenBucketLimiter
+
         self.rate_limiter = TokenBucketLimiter(capacity_multiplier=2.0)
         self.rate_limit_ext = RateLimitingExtension()
         self.logger = logging.getLogger(__name__)
@@ -226,30 +227,20 @@ class GracefulDegradationExecutor(AgentExecutor):
 
         # Try to check rate limit, but don't fail if limiter is unavailable
         try:
-            usage = self.rate_limiter.check_limit(
-                key=client_key,
-                limit=10,
-                window=60
-            )
+            usage = self.rate_limiter.check_limit(key=client_key, limit=10, window=60)
         except Exception as e:
             # Log error but allow request to proceed
             self.logger.error(f"Rate limiter error: {e}", exc_info=True)
 
             # Create a permissive usage result
-            usage = RateLimitResult(
-                allowed=True,
-                remaining=0,
-                limit_type="degraded"
-            )
+            usage = RateLimitResult(allowed=True, remaining=0, limit_type="degraded")
 
             # Optionally: Track degraded mode for monitoring
             self.logger.warning(f"Rate limiter in degraded mode for client {client_key}")
 
         # Continue with normal flow
         if not usage.allowed:
-            message = new_agent_text_message(
-                f"Rate limit exceeded. Retry after {usage.retry_after:.1f}s."
-            )
+            message = new_agent_text_message(f"Rate limit exceeded. Retry after {usage.retry_after:.1f}s.")
             if self.rate_limit_ext.is_activated(context):
                 self.rate_limit_ext.add_usage_signals(message, usage)
             await event_queue.enqueue_event(message)
@@ -271,11 +262,13 @@ class GracefulDegradationExecutor(AgentExecutor):
 # Pattern 5: Multiple Rate Limit Windows
 # ============================================================================
 
+
 class MultiWindowRateLimitExecutor(AgentExecutor):
     """Agent with multiple rate limit windows (per-second, per-minute, per-hour)."""
 
     def __init__(self):
         from ratelimiter_ext import TokenBucketLimiter
+
         self.rate_limiter = TokenBucketLimiter(capacity_multiplier=2.0)
         self.rate_limit_ext = RateLimitingExtension()
 
@@ -285,23 +278,18 @@ class MultiWindowRateLimitExecutor(AgentExecutor):
 
         # Check multiple rate limit windows
         limits = [
-            (10, 1),      # 10 per second
-            (100, 60),    # 100 per minute
-            (1000, 3600)  # 1000 per hour
+            (10, 1),  # 10 per second
+            (100, 60),  # 100 per minute
+            (1000, 3600),  # 1000 per hour
         ]
 
         for limit, window in limits:
-            usage = self.rate_limiter.check_limit(
-                key=f"{client_key}:{window}",
-                limit=limit,
-                window=window
-            )
+            usage = self.rate_limiter.check_limit(key=f"{client_key}:{window}", limit=limit, window=window)
 
             if not usage.allowed:
-                window_name = f"{window}s" if window < 60 else f"{window//60}m"
+                window_name = f"{window}s" if window < 60 else f"{window // 60}m"
                 message = new_agent_text_message(
-                    f"Rate limit exceeded ({limit}/{window_name}). "
-                    f"Retry after {usage.retry_after:.1f}s."
+                    f"Rate limit exceeded ({limit}/{window_name}). Retry after {usage.retry_after:.1f}s."
                 )
                 if self.rate_limit_ext.is_activated(context):
                     self.rate_limit_ext.add_usage_signals(message, usage)

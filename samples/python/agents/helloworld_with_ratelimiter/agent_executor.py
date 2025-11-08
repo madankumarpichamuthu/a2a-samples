@@ -58,7 +58,7 @@ class HelloWorldAgentExecutor(AgentExecutor):
             Unique key for rate limiting this client
         """
         remote_addr = getattr(context, 'remote_addr', 'unknown')
-        return f"ip:{remote_addr}"
+        return f'ip:{remote_addr}'
 
     # --8<-- [start:HelloWorldAgentExecutor_execute]
     async def execute(
@@ -84,16 +84,14 @@ class HelloWorldAgentExecutor(AgentExecutor):
         # Step 2: ALWAYS check rate limits (enforcement)
         # Rate limit: 10 requests per minute
         usage = self.rate_limiter.check_limit(
-            key=client_key,
-            limit=10,
-            window=60
+            key=client_key, limit=10, window=60
         )
 
         # Step 3: If rate limited, return error
         if not usage.allowed:
             error_msg = (
-                f"Rate limit exceeded. {usage.remaining} requests remaining. "
-                f"Retry after {usage.retry_after:.1f} seconds."
+                f'Rate limit exceeded. {usage.remaining} requests remaining. '
+                f'Retry after {usage.retry_after:.1f} seconds.'
             )
             message = new_agent_text_message(error_msg)
 

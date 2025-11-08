@@ -83,8 +83,7 @@ if __name__ == '__main__':
     # Create agent executor with rate limiting enforcement built-in
     # No wrapping needed - executor handles enforcement directly
     executor = HelloWorldAgentExecutor(
-        rate_limiter=rate_limiter,
-        rate_limit_extension=rate_limit_extension
+        rate_limiter=rate_limiter, rate_limit_extension=rate_limit_extension
     )
 
     request_handler = DefaultRequestHandler(

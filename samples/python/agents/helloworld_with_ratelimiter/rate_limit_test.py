@@ -140,7 +140,7 @@ class RateLimitTestClient:
         for i in range(1, 16):
             response = await self.send_request(
                 f'Hello #{i}',
-                use_extension=False  # No extension - but still rate limited!
+                use_extension=False,  # No extension - but still rate limited!
             )
             self.print_response_info(i, response, start_time)
 
@@ -159,7 +159,9 @@ class RateLimitTestClient:
         """
         print('\n\n🧪 Testing WITH Extension (Usage Signals Included)')
         print('=' * 60)
-        print('Same rate limiting (10 req/min), but now responses include usage info.')
+        print(
+            'Same rate limiting (10 req/min), but now responses include usage info.'
+        )
         print('(Extension provides visibility into enforcement)\n')
 
         start_time = time.time()
@@ -175,7 +177,9 @@ class RateLimitTestClient:
             await asyncio.sleep(0.1)
 
         print(f'\n⏱️  Total time: {time.time() - start_time:.1f}s')
-        print('\n💡 Key Insight: Now we see remaining requests, retry timing, etc.')
+        print(
+            '\n💡 Key Insight: Now we see remaining requests, retry timing, etc.'
+        )
         print('   Extension gives us visibility without changing enforcement.')
         print('   Server controls the rate limits, not the client.')
 
@@ -208,9 +212,7 @@ class RateLimitTestClient:
 
         # Wait for recovery
         wait_time = 10
-        print(
-            f'\nStep 2: Waiting {wait_time} seconds for token refill...'
-        )
+        print(f'\nStep 2: Waiting {wait_time} seconds for token refill...')
         await asyncio.sleep(wait_time)
 
         # Test recovery
@@ -258,7 +260,9 @@ class RateLimitTestClient:
             print('- Extension = visibility, NOT enforcement')
             print('- Clients get usage info when they activate extension')
             print('- Server controls all policies (clients cannot set limits)')
-            print('- Token bucket allows burst traffic while maintaining steady rate')
+            print(
+                '- Token bucket allows burst traffic while maintaining steady rate'
+            )
 
         except (KeyError, ValueError, RuntimeError) as e:
             print(f'\n❌ Test failed with error: {e}')
@@ -272,7 +276,7 @@ async def main():
     parser = argparse.ArgumentParser(
         description='Test rate limiting and usage signals extension',
         epilog='This demonstrates the separation of enforcement (always active) '
-               'vs. communication (extension provides visibility)'
+        'vs. communication (extension provides visibility)',
     )
     parser.add_argument(
         '--url',
@@ -284,7 +288,7 @@ async def main():
         choices=['basic', 'extension', 'recovery', 'all'],
         default='all',
         help='Which test to run: basic (no extension), extension (with usage signals), '
-             'recovery (token refill), or all (default: all)',
+        'recovery (token refill), or all (default: all)',
     )
 
     args = parser.parse_args()
